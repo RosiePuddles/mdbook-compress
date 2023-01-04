@@ -4,10 +4,8 @@ use serde::Deserialize;
 pub struct Config {
 	#[serde(default = "FontSize::default")]
 	pub font_size: FontSize,
-	#[serde(default = "PageSize::default")]
-	pub page_size: PageSize,
-	#[serde(default = "default_landscape")]
-	pub landscape: bool,
+	#[serde(default = "PageOpts::default")]
+	pub page: PageOpts,
 	#[serde(default = "default_hl")]
 	pub highlight: bool
 }
@@ -42,6 +40,24 @@ pub enum PageSize {
 	US_legal
 }
 
+#[derive(Deserialize, Debug)]
+pub struct PageMargins {
+	#[serde(default = "default_margin_x")]
+	pub x: f32,
+	#[serde(default = "default_margin_y")]
+	pub y: f32
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PageOpts {
+	#[serde(default = "PageSize::default")]
+	pub size: PageSize,
+	#[serde(default = "default_landscape")]
+	pub landscape: bool,
+	#[serde(default = "PageMargins::default")]
+	pub margin: PageMargins
+}
+
 fn default_title() -> f32 { 12.5 }
 fn default_h1() -> f32 { 11.0 }
 fn default_h2() -> f32 { 10.0 }
@@ -50,6 +66,8 @@ fn default_h4() -> f32 { 7.0 }
 fn default_h5() -> f32 { 6.0 }
 fn default_h6() -> f32 { 6.0 }
 fn default_text() -> f32 { 5.0 }
+fn default_margin_x() -> f32 { 12.0 }
+fn default_margin_y() -> f32 { 20.0 }
 fn default_landscape() -> bool { false }
 fn default_hl() -> bool { true }
 
@@ -79,9 +97,8 @@ impl PageSize {
 impl Default for Config {
 	fn default() -> Self {
 		Self {
-			font_size: FontSize::default(),
-			page_size: PageSize::A4,
-			landscape: false,
+			font_size: Default::default(),
+			page: Default::default(),
 			highlight: true
 		}
 	}
@@ -105,5 +122,24 @@ impl Default for FontSize {
 impl Default for PageSize {
 	fn default() -> Self {
 		PageSize::A4
+	}
+}
+
+impl Default for PageMargins {
+	fn default() -> Self {
+		Self {
+			x: 12.0,
+			y: 20.0,
+		}
+	}
+}
+
+impl Default for PageOpts {
+	fn default() -> Self {
+		Self {
+			size: Default::default(),
+			landscape: false,
+			margin: Default::default(),
+		}
 	}
 }

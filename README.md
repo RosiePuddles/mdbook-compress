@@ -28,20 +28,22 @@ This is simply a filled out book config section for this backend with comments f
 
 ```toml
 [output.compress]
-# Font sizes. Any heading after H6 will use the same font size
-# All font sizes must be a float (sorry)
-font_size.title = 12.5
-font_size.h1 = 11.0
-font_size.h2 = 10.0
-font_size.h3 = 8.5
-font_size.h4 = 7.0
-font_size.h5 = 6.0
-font_size.h6 = 6.0
-font_size.text = 5.0
+# Font sizes. Any heading after H6 will use the H6 font size
+# All font sizes will become an f32
+font_size.title = 12
+font_size.h1 = 11
+font_size.h2 = 10
+font_size.h3 = 8
+font_size.h4 = 7
+font_size.h5 = 6
+font_size.h6 = 6
+font_size.text = 5
+# Page configs
 # Page size. One of: A4, US letter, US legal
-page_size = "A4"
-# Landscape (true) or portrait (false)
-landscape = false
+page.size = "A4"
+page.landscape = false
+page.margin.x = 12
+page.margin.y = 20
 # Use Node.js to try and highlight code (true)
 # or leave it unhighlighted (false)
 highlight = true
