@@ -1,15 +1,20 @@
 use std::collections::BTreeMap;
 use std::io::Bytes;
+use std::path::PathBuf;
 use anyhow::Error;
 use html_parser::Node;
 use pdf_canvas::graphicsstate::Color;
 
 const HLJS: &'static str = include_str!("../theme/hl.js");
 
-pub fn get_languages() -> Vec<String> {
+pub fn check_language(name: &str, mut theme_path: PathBuf) -> bool {
+	theme_path.extend(["theme", "highlight.js"]);
+	let hljs = if theme_path.exists() {
+		std::fs::read_to_string(theme_path).unwrap_or(HLJS.to_string())
+	} else { HLJS.to_string() };
 	match std::process::Command::new("node")
 		.arg("-e")
-		.arg(format!("{};console.log(hljs.listLanguages().join('|'))", HLJS))
+		.arg(format!("{};console.log(!!hljs.getLanguage({:?}))", hljs, name))
 		.output() {
 		Ok(out) => {
 			let stdout = String::from_utf8(out.stdout).unwrap();
@@ -17,7 +22,7 @@ pub fn get_languages() -> Vec<String> {
 				println!("Error in getting highlight.js languages! {}", stdout);
 				std::process::exit(1)
 			}
-			stdout.split("|").map(|t| t.to_string()).collect()
+			return stdout.trim() == "true"
 		}
 		Err(e) => {
 			mdbook::utils::log_backtrace(&Error::new(e));
@@ -26,20 +31,24 @@ pub fn get_languages() -> Vec<String> {
 	}
 }
 
-pub fn highlight(language: &str, src: &str) -> Vec<(String, Option<Color>)> {
+pub fn highlight(language: &str, src: &str, mut theme_path: PathBuf) -> Vec<Vec<(String, Option<Color>)>> {
+	theme_path.extend(["theme", "highlight.js"]);
+	let hljs = if theme_path.exists() {
+		std::fs::read_to_string(theme_path).unwrap_or(HLJS.to_string())
+	} else { HLJS.to_string() };
 	let raw = match std::process::Command::new("node")
 		.current_dir(std::env::current_dir().unwrap())
 		.args([
 			"-e",
 			&*format!(
-				"{};console.log(hljs.highlight('{}','{}').value)", HLJS,
-				language, src.replace("'", "\\'").replace("\"", "\\\"").replace("\n", "\\n")
+				"{};console.log(hljs.highlight('{}',{{language:'{}'}}).value)", hljs,
+				src.replace("'", "\\'").replace("\"", "\\\"").replace("\n", "\\n"), language
 			)
 		]).output() {
 		Ok(out) => {
 			let stdout = String::from_utf8(out.stdout).unwrap();
 			if out.status.code() != Some(0) {
-				println!("Error highlighting code! Using un-highlighted code. {}", stdout);
+				println!("Error highlighting code! Using un-highlighted code. {}", String::from_utf8(out.stderr).unwrap());
 				src.to_string()
 			} else { stdout }
 		}
@@ -84,8 +93,11 @@ pub fn highlight(language: &str, src: &str) -> Vec<(String, Option<Color>)> {
 		for i in elements {
 			match i {
 				Node::Text(t) => out_ref.push((
-					t.replace("&gt;", ">")
-						.replace("&lt;", "<"),
+					t.replace("&amp;", "&")
+						.replace("&gt;", ">")
+						.replace("&lt;", "<")
+						.replace("&quot;", "\"")
+						.replace("&#x27;", "'"),
 					default_colour)),
 				Node::Element(e) => {
 					if let Some(c) = e.classes.last() {
@@ -101,5 +113,26 @@ pub fn highlight(language: &str, src: &str) -> Vec<(String, Option<Color>)> {
 		}
 	}
 	expand(dom.children, &mut out, None, &style);
-	out
+	let mut lines = Vec::new();
+	let mut line_acc = Vec::new();
+	for (s, c) in out {
+		if s.contains("\n") {
+			let mut section_acc = String::new();
+			for ch in s.chars() {
+				if ch == '\n' {
+					line_acc.push((section_acc.clone(), c.clone()));
+					lines.push(line_acc.clone());
+					line_acc.clear();
+					section_acc.clear();
+				} else {
+					section_acc.push(ch)
+				}
+			}
+			line_acc.push((section_acc, c));
+		} else {
+			line_acc.push((s, c))
+		}
+	}
+	lines.push(line_acc);
+	lines
 }

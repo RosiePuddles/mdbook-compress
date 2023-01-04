@@ -27,7 +27,7 @@ impl Generator {
             if let Chapter(c) = i { chapter(
                 c, &mut self.document,
                 &self.pdf_opts.page, &self.pdf_opts.font_size,
-                self.pdf_opts.highlight
+                self.pdf_opts.highlight, self.config.root.clone()
             )? }
         }
         self.document.render_page(

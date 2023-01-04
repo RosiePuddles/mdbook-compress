@@ -1,3 +1,4 @@
+use std::path::{Path, PathBuf};
 use html_parser::{Element, Node};
 use mdbook::book::Chapter;
 use pdf_canvas::graphicsstate::Color;
@@ -6,11 +7,11 @@ use pulldown_cmark::{Event::{self, Start, Text}, Parser};
 use pulldown_cmark::CodeBlockKind::Fenced;
 use pulldown_cmark::CowStr::Borrowed;
 use pulldown_cmark::Tag::CodeBlock;
-use crate::build::highlight::highlight;
+use crate::build::highlight::{check_language, highlight};
 use crate::build::util::split_width;
 use crate::config::{FontSize, PageMargins, PageOpts};
 
-pub fn chapter(chapter: &Chapter, document: &mut Pdf, page: &PageOpts, font_sizes: &FontSize, hl: bool) -> std::io::Result<()> {
+pub fn chapter(chapter: &Chapter, document: &mut Pdf, page: &PageOpts, font_sizes: &FontSize, hl: bool, theme_path: PathBuf) -> std::io::Result<()> {
 	let width = page.size.width(page.landscape);
 	let height = page.size.height(page.landscape);
 	// preprocessing code blocks
@@ -33,12 +34,21 @@ pub fn chapter(chapter: &Chapter, document: &mut Pdf, page: &PageOpts, font_size
 	// }
 	// // building chapter to pages
 	document.render_page(width, height, |c| {
+		let mut y = height - page.margin.y;
 		for token in tokens {
 			match token {
 				Node::Text(_) => {}
-				Node::Element(e) => {
+				Node::Element(mut e) => {
 					match &*e.name {
-						"p" => paragraph(e.children, c, font_sizes.text, width - 2.0 * page.margin.x, height - 50.0, &page.margin)?,
+						"p" => y = paragraph(e.children, c, font_sizes.text, width - 2.0 * page.margin.x, y, &page.margin)?,
+						"pre" => {
+							if let Some(Node::Element(mut code)) = e.children.pop() {
+								y = code_block(
+									code.children, code.classes.pop().unwrap_or("language-".to_string()),
+									c, font_sizes.text, y, &page.margin, hl, theme_path.clone()
+								)?;
+							}
+						}
 						_ => {}
 					}
 				}
@@ -49,7 +59,7 @@ pub fn chapter(chapter: &Chapter, document: &mut Pdf, page: &PageOpts, font_size
 	})
 }
 
-fn paragraph(children: Vec<Node>, c: &mut Canvas, fsize: f32, width: f32, mut y: f32, margin: &PageMargins) -> std::io::Result<()> {
+fn paragraph(children: Vec<Node>, c: &mut Canvas, fsize: f32, width: f32, mut y: f32, margin: &PageMargins) -> std::io::Result<f32> {
 	let mut text = Vec::new();
 	let mut widths = Vec::new();
 	let mut fonts = Vec::new();
@@ -99,5 +109,49 @@ fn paragraph(children: Vec<Node>, c: &mut Canvas, fsize: f32, width: f32, mut y:
 		}
 		y -= fsize + 2.0;
 	}
-	Ok(())
+	Ok(y - 4.0)
+}
+
+fn code_block(children: Vec<Node>, lang: String, c: &mut Canvas, fsize: f32, mut y: f32, margin: &PageMargins, hl: bool, theme_path: PathBuf) -> std::io::Result<f32> {
+	fn parse(children: Vec<Node>, t: &mut String) {
+		for c in children {
+			match c {
+				Node::Text(text) => t.extend(text.replace("&amp;", "&")
+						.replace("&gt;", ">")
+						.replace("&lt;", "<")
+						.replace("&quot;", "\"")
+						.replace("&#x27;", "'")
+					.chars()),
+				Node::Element(e) => parse(e.children, t),
+				_ => {}
+			}
+		}
+	}
+	let mut block = String::new();
+	parse(children, &mut block);
+	if hl && lang.starts_with("language-") && check_language(&lang[9..lang.len()], theme_path.clone()) {
+		let font_ref = c.get_font(BuiltinFont::Courier);
+		let space_width = font_ref.get_width(fsize, " ");
+		let lines = highlight(&lang[9..lang.len()], &*block, theme_path.clone());
+		for line in lines {
+			let mut w = margin.x;
+			for (section, colour) in line {
+				c.text(|f| {
+					if let Some(col) = colour { f.set_fill_color(col)?; }
+					f.pos(w, y)?;
+					f.set_font(&font_ref, fsize)?;
+					f.show(&*section)
+				})?;
+				w += c.get_font(BuiltinFont::Courier).get_width(fsize, &*section) + space_width;
+			}
+			y -= fsize + 2.0
+		}
+	} else {
+		let lines = block.lines();
+		for line in lines {
+			c.left_text(margin.x, y, BuiltinFont::Courier, fsize, &*line)?;
+			y -= fsize + 2.0
+		}
+	}
+	Ok(y - 4.0)
 }
