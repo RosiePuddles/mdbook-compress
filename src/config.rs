@@ -7,7 +7,9 @@ pub struct Config {
 	#[serde(default = "PageSize::default")]
 	pub page_size: PageSize,
 	#[serde(default = "default_landscape")]
-	pub landscape: bool
+	pub landscape: bool,
+	#[serde(default = "default_hl")]
+	pub highlight: bool
 }
 
 #[derive(Deserialize, Debug)]
@@ -30,9 +32,14 @@ pub struct FontSize {
 	pub text: f32,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug)]
 pub enum PageSize {
-	A4
+	A4,
+	#[serde(rename = "US letter")]
+	US_letter,
+	#[serde(rename = "US legal")]
+	US_legal
 }
 
 fn default_title() -> f32 { 12.5 }
@@ -44,6 +51,7 @@ fn default_h5() -> f32 { 6.0 }
 fn default_h6() -> f32 { 6.0 }
 fn default_text() -> f32 { 5.0 }
 fn default_landscape() -> bool { false }
+fn default_hl() -> bool { true }
 
 impl Config {
 	pub fn from_rc(rc: Option<Self>) -> Self { rc.unwrap_or(Self::default()) }
@@ -53,13 +61,17 @@ impl PageSize {
 	pub fn width(&self, landscape: bool) -> f32 {
 		if landscape { return self.height(false) }
 		match self {
-			PageSize::A4 => 210.0
+			PageSize::A4 => 210.0,
+			PageSize::US_letter => 215.9,
+			PageSize::US_legal => 215.9,
 		}
 	}
 	pub fn height(&self, landscape: bool) -> f32 {
 		if landscape { return self.width(false) }
 		match self {
-			PageSize::A4 => 297.0
+			PageSize::A4 => 297.0,
+			PageSize::US_letter => 279.4,
+			PageSize::US_legal => 355.6,
 		}
 	}
 }
@@ -69,7 +81,8 @@ impl Default for Config {
 		Self {
 			font_size: FontSize::default(),
 			page_size: PageSize::A4,
-			landscape: false
+			landscape: false,
+			highlight: true
 		}
 	}
 }
