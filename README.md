@@ -57,6 +57,12 @@ If you need a custom page size, you can give the width and height (`x` and `y`) 
 page.size = { x = "width", y = "height" }
 ```
 
+## Why does it take so long?
+
+Because there's no way (that I know of) to call JS scripts quickly other that running a node command, building the PDF can take a bit of time.
+
+If you know a faster way to do this, please open an issue or a PR.
+
 ## Dependencies
 
 If you want to know what different dependencies are used for, here you go

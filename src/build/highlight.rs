@@ -106,35 +106,36 @@ pub fn highlight(language: String, src: &str, hl: &String) -> LinearLayout{
 	let mut block = LinearLayout::vertical();
 	let mut line = Paragraph::new("");
 	if out.is_empty() { return block }
-	let last = out.pop().unwrap();
+	let mut last = out.pop().unwrap();
+	last.0 = last.0.trim_end().to_string();
 	for (words, style) in out {
 		if words.contains("\n") {
-			let mut push_end = words.chars().last() == Some('\n');
-			let mut lines = words.split("\n");
-			line.push(StyledString::new(lines.next().unwrap(), style));
-			for section in lines {
-				block.push(line);
-				line = Paragraph::new(StyledString::new(section, style));
-			}
-			if push_end {
+			if &*words == "\n" {
 				block.push(line);
 				line = Paragraph::new("");
+			} else {
+				let mut push_end = words.chars().last() == Some('\n');
+				let mut lines = words.split("\n");
+				line.push(StyledString::new(lines.next().unwrap(), style));
+				for section in lines {
+					block.push(line);
+					line = Paragraph::new(StyledString::new(section, style));
+				}
+				if push_end {
+					block.push(line);
+					line = Paragraph::new("");
+				}
 			}
 		} else {
 			line.push(StyledString::new(words, style))
 		}
 	}
 	if last.0.contains("\n") {
-		let mut push_end = last.0.chars().last() == Some('\n');
 		let mut lines = last.0.split("\n");
 		line.push(StyledString::new(lines.next().unwrap(), last.1));
 		for section in lines {
 			block.push(line);
 			line = Paragraph::new(StyledString::new(section, last.1));
-		}
-		if push_end {
-			block.push(line);
-			line = Paragraph::new("");
 		}
 	} else {
 		line.push(StyledString::new(last.0, last.1))

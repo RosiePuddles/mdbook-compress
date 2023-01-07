@@ -38,12 +38,12 @@ impl Generator {
 						"h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
 							let mut para = elements::Paragraph::new("");
 							self.paragraph(child.children(), style.with_font_size(self.pdf_opts.font_size.get(e.name())), &mut para);
-							out.push(para)
+							out.push(para.padded((0, 0, 3, 0)))
 						}
 						"p" => {
 							let mut para = elements::Paragraph::new("");
 							self.paragraph(child.children(), style, &mut para);
-							out.push(para)
+							out.push(para.padded((0, 0, 1, 0)))
 						}
 						"ol" => {
 							let mut block = elements::LinearLayout::vertical();
@@ -58,7 +58,7 @@ impl Generator {
 						"pre" => {
 							let mut block = elements::LinearLayout::vertical();
 							self.code(child.children(), &mut block, hl);
-							out.push(block)
+							out.push(block.padded((0, 0, 1, 0)))
 						}
 						_ => {}
 					}
@@ -78,7 +78,7 @@ impl Generator {
 						"p" | "a" => self.paragraph(child.children(), style, parent),
 						"strong" => self.paragraph(child.children(), style.bold(), parent),
 						"em" => self.paragraph(child.children(), style.italic(), parent),
-						"code" => self.paragraph(child.children(), Style::from(self.monospace).with_font_size(self.pdf_opts.font_size.text), parent),
+						"code" => self.paragraph(child.children(), style.with_font_family(self.monospace), parent),
 						"br" => parent.push(StyledString::new("\n", style)),
 						_ => { println!("{} from paragraph", e.name()) }
 					}
@@ -165,6 +165,6 @@ impl Generator {
 			Style::from(self.monospace)
 				.with_line_spacing(0.0)
 				.with_font_size(self.pdf_opts.font_size.text)
-		))
+		));
 	}
 }
