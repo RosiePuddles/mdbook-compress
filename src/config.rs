@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -87,6 +87,20 @@ impl PageSize {
 			PageSize::Custom { x, y } => (*x, *y)
 		};
 		if landscape { (y, x) } else { (x, y) }
+	}
+}
+
+impl FontSize {
+	pub fn get(&self, section: &str) -> u8 {
+		match section {
+			"h1" => self.h1,
+			"h2" => self.h2,
+			"h3" => self.h3,
+			"h4" => self.h4,
+			"h5" => self.h5,
+			"h6" => self.h6,
+			_ => self.text
+		}
 	}
 }
 

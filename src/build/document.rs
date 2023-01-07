@@ -2,23 +2,21 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::BufWriter;
 use anyhow::Error;
-use genpdf::{Alignment, Document, Element as _, elements, SimplePageDecorator, style};
+use genpdf::{Alignment, Document, Element as _, elements, fonts, SimplePageDecorator, style};
 use genpdf::elements::StyledElement;
-use genpdf::fonts::{FontData, FontFamily};
+use genpdf::fonts::{Font, FontData, FontFamily};
 use genpdf::style::Style;
-use html_parser::Node::Element;
 use mdbook::book::{BookItems, Chapter};
 use mdbook::BookItem;
 use mdbook::renderer::RenderContext;
-// use crate::build::doc::chapter;
 use crate::config::{Config, PageOpts};
 
 pub struct Generator {
-    config: RenderContext,
-    pdf_opts: Config,
-    document: Document,
-    monospace: FontData,
-    title: String
+    pub config: RenderContext,
+    pub pdf_opts: Config,
+    pub document: Document,
+    pub monospace: FontFamily<Font>,
+    pub title: String
 }
 
 const HLJS: &'static str = include_str!("../../theme/hl.js");
@@ -26,7 +24,7 @@ const OPEN_SANS: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-
 const OPEN_SANS_BOLD: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-700.ttf");
 const OPEN_SANS_BOLD_ITALIC: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-700italic.ttf");
 const OPEN_SANS_ITALIC: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-italic.ttf");
-const SOURCE_CODE_PRO: &[u8] = include_bytes!("../../theme/source-code-pro-v11-all-charsets-500.ttf");
+const SOURCE_CODE_PRO: &[u8] = include_bytes!("../../theme/SourceCodePro-Regular.ttf");
 
 impl Generator {
     /// Create a new PDF generator instance \
@@ -41,12 +39,15 @@ impl Generator {
             bold_italic: FontData::new(OPEN_SANS_BOLD_ITALIC.to_vec(), None).unwrap(),
         };
         let title = rc.config.book.title.clone().unwrap_or(String::new());
-        Ok(Self {
-            config: rc, pdf_opts,
-            document: Document::new(fonts),
-            monospace: FontData::new(SOURCE_CODE_PRO.to_vec(), None).unwrap(),
-            title
-        }.configure())
+        let mut document = Document::new(fonts);
+        let monospace_raw = FontData::new(SOURCE_CODE_PRO.to_vec(), None).unwrap();
+        let monospace = document.add_font_family(FontFamily {
+            regular: monospace_raw.clone(),
+            bold: monospace_raw.clone(),
+            italic: monospace_raw.clone(),
+            bold_italic: monospace_raw.clone(),
+        });
+        Ok(Self { config: rc, pdf_opts, document, monospace, title }.configure())
     }
     
     fn configure(mut self) -> Self {
@@ -103,79 +104,12 @@ impl Generator {
                 Some(HLJS.to_string())
             }
         }
-        // let font = self.document.add_external_font(OPEN_SANS)?;
-        // for i in self.config.book.iter() {
-        //     if let Chapter(c) = i { chapter(
-        //         c, &mut self.document,
-        //         &self.pdf_opts.page, &self.pdf_opts.font_size, &hl
-        //     )? }
-        // }
-        // self.document.render_page(
-        //     self.pdf_opts.page.size.width(self.pdf_opts.page.landscape),
-        //     self.pdf_opts.page.size.height(self.pdf_opts.page.landscape),
-        //     |c| {
-        //         // c.center_text(
-        //         //     self.pdf_opts.page.size.width(self.pdf_opts.page.landscape) / 2.0,
-        //         //     self.pdf_opts.page.size.height(self.pdf_opts.page.landscape) - 20.0,
-        //         //     BuiltinFont::Helvetica,
-        //         //     self.pdf_opts.font_size.title,
-        //         //     &*self.config.config.book.title.clone().unwrap_or(String::new())
-        //         // )?;
-        //         let style = BTreeMap::from([
-        //             ("hljs-comment", Color::gray(87)),
-        //             ("hljs-quote", Color::gray(87)),
-        //             ("hljs-variable", Color::rgb(215, 0, 37)),
-        //             ("hljs-template-variable", Color::rgb(215, 0, 37)),
-        //             ("hljs-tag", Color::rgb(215, 0, 37)),
-        //             ("hljs-attribute", Color::rgb(215, 0, 37)),
-        //             ("hljs-name", Color::rgb(215, 0, 37)),
-        //             ("hljs-regexp", Color::rgb(215, 0, 37)),
-        //             ("hljs-link", Color::rgb(215, 0, 37)),
-        //             ("hljs-name", Color::rgb(215, 0, 37)),
-        //             ("hljs-selector-id", Color::rgb(215, 0, 37)),
-        //             ("hljs-selector-class", Color::rgb(215, 0, 37)),
-        //             ("hljs-number", Color::rgb(178, 30, 0)),
-        //             ("hljs-meta", Color::rgb(178, 30, 0)),
-        //             ("hljs-built_in", Color::rgb(178, 30, 0)),
-        //             ("hljs-builtin-name", Color::rgb(178, 30, 0)),
-        //             ("hljs-literal", Color::rgb(178, 30, 0)),
-        //             ("hljs-type", Color::rgb(178, 30, 0)),
-        //             ("hljs-params", Color::rgb(178, 30, 0)),
-        //             ("hljs-string", Color::rgb(0, 130, 0)),
-        //             ("hljs-symbol", Color::rgb(0, 130, 0)),
-        //             ("hljs-bullet", Color::rgb(0, 130, 0)),
-        //             ("hljs-title", Color::rgb(0, 48, 242)),
-        //             ("hljs-section", Color::rgb(0, 48, 242)),
-        //             ("hljs-keyword", Color::rgb(157, 0, 236)),
-        //             ("hljs-selector-tag", Color::rgb(157, 0, 236)),
-        //             ("hljs-addition", Color::rgb(34, 134, 58)),
-        //             ("hljs-deletion", Color::rgb(179, 29, 40))
-        //         ]);
-        //         let mut w = self.pdf_opts.page.size.height(self.pdf_opts.page.landscape) - 30.0;
-        //         let font_ref = c.get_font(BuiltinFont::Helvetica);
-        //         for (k, v) in style {
-        //             c.text(|f| {
-        //                 f.set_fill_color(v.clone())?;
-        //                 f.set_font(&font_ref, self.pdf_opts.font_size.text)?;
-        //                 f.pos(self.pdf_opts.page.margin.x, w)?;
-        //                 f.show(k)
-        //             })?;
-        //             c.text(|f| {
-        //                 // f.set_fill_color(Color::gray(0))?;
-        //                 f.set_font(&font_ref, self.pdf_opts.font_size.text)?;
-        //                 f.pos(self.pdf_opts.page.margin.x + 50.0, w)?;
-        //                 f.show(k)
-        //             })?;
-        //             c.text(|f| {
-        //                 f.set_font(&font_ref, self.pdf_opts.font_size.text)?;
-        //                 f.pos(self.pdf_opts.page.margin.x + 100.0, w)?;
-        //                 f.show(&*format!("{:?}", v))
-        //             })?;
-        //             w -= self.pdf_opts.font_size.text + 2.0;
-        //         }
-        //         Ok(())
-        //     }
-        // )?;
+        for chapter in self.config.clone().book.iter() {
+            if let BookItem::Chapter(chapter) = chapter {
+                self.chapter(&*chapter.content, &hl)
+            }
+        }
+        // TODO: error handling
         self.document.render(File::create(format!("{}.pdf", self.title)).unwrap())
     }
 }
