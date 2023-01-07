@@ -7,45 +7,48 @@ pub struct Config {
 	#[serde(default = "PageOpts::default")]
 	pub page: PageOpts,
 	#[serde(default = "default_hl")]
-	pub highlight: bool
+	pub highlight: bool,
+	pub subtitle: Option<String>
 }
 
 #[derive(Deserialize, Debug)]
 pub struct FontSize {
 	#[serde(default = "default_title")]
-	pub title: f32,
+	pub title: u8,
 	#[serde(default = "default_h1")]
-	pub h1: f32,
+	pub h1: u8,
 	#[serde(default = "default_h2")]
-	pub h2: f32,
+	pub h2: u8,
 	#[serde(default = "default_h3")]
-	pub h3: f32,
+	pub h3: u8,
 	#[serde(default = "default_h4")]
-	pub h4: f32,
+	pub h4: u8,
 	#[serde(default = "default_h5")]
-	pub h5: f32,
+	pub h5: u8,
 	#[serde(default = "default_h6")]
-	pub h6: f32,
+	pub h6: u8,
 	#[serde(default = "default_text")]
-	pub text: f32,
+	pub text: u8,
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug)]
+#[serde(untagged)]
 pub enum PageSize {
 	A4,
 	#[serde(rename = "US letter")]
 	US_letter,
 	#[serde(rename = "US legal")]
-	US_legal
+	US_legal,
+	Custom { x: f64, y: f64 }
 }
 
 #[derive(Deserialize, Debug)]
-pub struct PageMargins {
-	#[serde(default = "default_margin_x")]
-	pub x: f32,
-	#[serde(default = "default_margin_y")]
-	pub y: f32
+pub struct PageSpaces {
+	#[serde(default = "default_line_space")]
+	pub line: f64,
+	#[serde(default = "default_margin")]
+	pub margin: (f64, f64)
 }
 
 #[derive(Deserialize, Debug)]
@@ -54,20 +57,20 @@ pub struct PageOpts {
 	pub size: PageSize,
 	#[serde(default = "default_landscape")]
 	pub landscape: bool,
-	#[serde(default = "PageMargins::default")]
-	pub margin: PageMargins
+	#[serde(default = "PageSpaces::default")]
+	pub spacing: PageSpaces
 }
 
-fn default_title() -> f32 { 12.5 }
-fn default_h1() -> f32 { 11.0 }
-fn default_h2() -> f32 { 10.0 }
-fn default_h3() -> f32 { 8.5 }
-fn default_h4() -> f32 { 7.0 }
-fn default_h5() -> f32 { 6.0 }
-fn default_h6() -> f32 { 6.0 }
-fn default_text() -> f32 { 5.0 }
-fn default_margin_x() -> f32 { 12.0 }
-fn default_margin_y() -> f32 { 20.0 }
+fn default_title() -> u8 { 25 }
+fn default_h1() -> u8 { 22 }
+fn default_h2() -> u8 { 20 }
+fn default_h3() -> u8 { 17 }
+fn default_h4() -> u8 { 14 }
+fn default_h5() -> u8 { 12 }
+fn default_h6() -> u8 { 12 }
+fn default_text() -> u8 { 10 }
+fn default_line_space() -> f64 { 1.5 }
+fn default_margin() -> (f64, f64) { (20.0, 20.0) }
 fn default_landscape() -> bool { false }
 fn default_hl() -> bool { true }
 
@@ -76,21 +79,14 @@ impl Config {
 }
 
 impl PageSize {
-	pub fn width(&self, landscape: bool) -> f32 {
-		if landscape { return self.height(false) }
-		match self {
-			PageSize::A4 => 210.0,
-			PageSize::US_letter => 215.9,
-			PageSize::US_legal => 215.9,
-		}
-	}
-	pub fn height(&self, landscape: bool) -> f32 {
-		if landscape { return self.width(false) }
-		match self {
-			PageSize::A4 => 297.0,
-			PageSize::US_letter => 279.4,
-			PageSize::US_legal => 355.6,
-		}
+	pub fn size(&self, landscape: bool) -> (f64, f64) {
+		let (x, y) = match self {
+			PageSize::A4 => (210.0, 297.0),
+			PageSize::US_letter => (215.9, 279.4),
+			PageSize::US_legal => (215.9, 355.6),
+			PageSize::Custom { x, y } => (*x, *y)
+		};
+		if landscape { (y, x) } else { (x, y) }
 	}
 }
 
@@ -99,7 +95,8 @@ impl Default for Config {
 		Self {
 			font_size: Default::default(),
 			page: Default::default(),
-			highlight: true
+			highlight: default_hl(),
+			subtitle: None
 		}
 	}
 }
@@ -107,14 +104,14 @@ impl Default for Config {
 impl Default for FontSize {
 	fn default() -> Self {
 		Self {
-			title: 12.5,
-			h1: 11.0,
-			h2: 10.0,
-			h3: 8.5,
-			h4: 7.0,
-			h5: 6.0,
-			h6: 6.0,
-			text: 5.0,
+			title: default_title(),
+			h1: default_h1(),
+			h2: default_h2(),
+			h3: default_h3(),
+			h4: default_h4(),
+			h5: default_h5(),
+			h6: default_h6(),
+			text: default_text(),
 		}
 	}
 }
@@ -125,11 +122,11 @@ impl Default for PageSize {
 	}
 }
 
-impl Default for PageMargins {
+impl Default for PageSpaces {
 	fn default() -> Self {
 		Self {
-			x: 12.0,
-			y: 20.0,
+			line: default_line_space(),
+			margin: default_margin(),
 		}
 	}
 }
@@ -138,8 +135,8 @@ impl Default for PageOpts {
 	fn default() -> Self {
 		Self {
 			size: Default::default(),
-			landscape: false,
-			margin: Default::default(),
+			landscape: default_landscape(),
+			spacing: Default::default(),
 		}
 	}
 }

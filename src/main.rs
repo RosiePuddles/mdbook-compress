@@ -2,9 +2,8 @@ mod config;
 mod build;
 
 use anyhow::Error;
-use mdbook::book::Book;
-use mdbook::BookItem;
 use mdbook::renderer::RenderContext;
+use crate::build::Generator;
 use crate::config::Config;
 
 fn main() {
@@ -12,12 +11,18 @@ fn main() {
     let opts = match rc.config.get_deserialized_opt::<Config, _>("output.compress") {
         Ok(t) => Config::from_rc(t),
         Err(e) => {
-            mdbook::utils::log_backtrace(&e);
-            std::process::exit(1)
+            let err = Error::msg(format!("Unable to parse config config file: {}", e));
+            mdbook::utils::log_backtrace(&err);
+            return
         }
     };
-    if let Err(e) = build::Generator::new(rc, opts).build() {
+    let generator = match Generator::new(rc, opts) {
+        Ok(g) => g,
+        Err(e) => {
+            return
+        }
+    };
+    if let Err(e) = generator.build() {
         mdbook::utils::log_backtrace(&Error::new(e));
-        std::process::exit(1)
     }
 }

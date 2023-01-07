@@ -1,6 +1,8 @@
-mod main;
-mod doc;
-mod util;
-mod highlight;
+// mod main;
+// mod doc;
+// mod util;
+// mod highlight;
+mod document;
+mod sections;
 
-pub use main::Generator;
+pub use document::Generator;

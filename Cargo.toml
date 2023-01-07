@@ -10,7 +10,7 @@ edition = "2021"
 [dependencies]
 serde = { version = "1.0.152", features = ["derive"] }
 mdbook = "0.4.25"
-pdf-canvas = "0.7.0"
+genpdf = "0.2.0"
 anyhow = "1.0.68"
 html_parser = "0.6.3"
 pulldown-cmark = { version = "0.9.2", default-features = false }
