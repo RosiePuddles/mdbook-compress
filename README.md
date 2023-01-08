@@ -63,12 +63,12 @@ If you know a faster way to do this, please open an issue or a PR.
 
 If you want to know what different dependencies are used for, here you go
 
-| Dependency       | Version | Use                                                |
-|------------------|---------|----------------------------------------------------|
-| `serde`          | 1.0.152 | Config struct deserialisation                      |
-| `mdbook`         | 0.4.25  | Getting mdbook config and some error printing      |
-| `genpdf`         | 0.2.0   | PDF building (really nice library btw)             |
-| `anyhow`         | 1.0.68  | Error handling                                     |
-| `scraper`        | 0.14.0  | Parsing HTML output from highlight.js              |
-| `ego-tree`       | 0.6.2   | Required for function call types when highlighting |
-| `pulldown-cmark` | 0.9.2   | Markdown parsing                                   |
+| Dependency                                                        | Version | Use                                                |
+|-------------------------------------------------------------------|---------|----------------------------------------------------|
+| [`serde`](https://crates.io/crates/serde/1.0.152)                 | 1.0.152 | Config struct deserialisation                      |
+| [`mdbook`](https://crates.io/crates/mdbook/0.4.25)                | 0.4.25  | Getting mdbook config and some error printing      |
+| [`genpdf`](https://crates.io/crates/genpdf/0.2.0)                 | 0.2.0   | PDF building (really nice library btw)             |
+| [`anyhow`](https://crates.io/crates/anyhow/1.0.68)                | 1.0.68  | Error handling                                     |
+| [`scraper`](https://crates.io/crates/scraper/0.14.0)              | 0.14.0  | Parsing HTML output from highlight.js              |
+| [`ego-tree`](https://crates.io/crates/ego-tree/0.6.2)             | 0.6.2   | Required for function call types when highlighting |
+| [`pulldown-cmark`](https://crates.io/crates/pulldown-cmark/0.9.2) | 0.9.2   | Markdown parsing                                   |
