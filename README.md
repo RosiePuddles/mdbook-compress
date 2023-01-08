@@ -1,9 +1,5 @@
 # mdbook-compress
 
-> **Work In Progress**
->
-> Currently non-functional
-
 An [mdBook](https://github.com/rust-lang/mdBook) backend renderer to generate a single PDF file for a full book.
 
 There are other similar projects, but most rely on chrome in some way to generate a PDF. This project only optionally
@@ -20,7 +16,7 @@ To use this backend, you'll need to add the following to your `book.toml` file:
 
 > If you want to keep the default HTML output, you'll also need to add in `[output.html]` if it's not already there
 
-The resulting PDF will end up in `/book/compress/<book-title>.pdf`.
+The resulting PDF will end up in `/book/compress/<book-title>.pdf`. If you want to have a look at an example of the PDF generated, you can have a look at [this one](https://github.com/heyitsdoodler/hbml/blob/main/docs/book/compress/HBML%20Tutorial.pdf) which is the whole reaoson this project exists in the first place.
 
 ### Config options
 
@@ -67,11 +63,12 @@ If you know a faster way to do this, please open an issue or a PR.
 
 If you want to know what different dependencies are used for, here you go
 
-| Dependency       | Version | Use                                           |
-|------------------|---------|-----------------------------------------------|
-| `serde`          | 1.0.152 | Config struct deserialisation                 |
-| `mdbook`         | 0.4.25  | Getting mdbook config and some error printing |
-| `genpdf`         | 0.2.0   | PDF building (really nice library btw)        |
-| `anyhow`         | 1.0.68  | Error handling                                |
-| `html_parser`    | 0.6.3   | Parsing HTML output from highlight.js         |
-| `pulldown-cmark` | 0.9.2   | Markdown parsing                              |
+| Dependency       | Version | Use                                                |
+|------------------|---------|----------------------------------------------------|
+| `serde`          | 1.0.152 | Config struct deserialisation                      |
+| `mdbook`         | 0.4.25  | Getting mdbook config and some error printing      |
+| `genpdf`         | 0.2.0   | PDF building (really nice library btw)             |
+| `anyhow`         | 1.0.68  | Error handling                                     |
+| `scraper`        | 0.14.0  | Parsing HTML output from highlight.js              |
+| `ego-tree`       | 0.6.2   | Required for function call types when highlighting |
+| `pulldown-cmark` | 0.9.2   | Markdown parsing                                   |
