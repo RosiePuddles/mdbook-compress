@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
+/// Root config struct
 #[derive(Deserialize, Debug)]
 pub struct Config {
 	#[serde(default = "FontSize::default")]
@@ -11,6 +12,7 @@ pub struct Config {
 	pub subtitle: Option<String>
 }
 
+/// Font sizes for title, H1 to H6, and text
 #[derive(Deserialize, Debug)]
 pub struct FontSize {
 	#[serde(default = "default_title")]
@@ -31,6 +33,7 @@ pub struct FontSize {
 	pub text: u8,
 }
 
+/// Page size enum
 #[allow(non_camel_case_types)]
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
@@ -43,6 +46,7 @@ pub enum PageSize {
 	Custom { x: f64, y: f64 }
 }
 
+/// Page spacing values (line spacing and margins)
 #[derive(Deserialize, Debug)]
 pub struct PageSpaces {
 	#[serde(default = "default_line_space")]
@@ -51,6 +55,7 @@ pub struct PageSpaces {
 	pub margin: (f64, f64)
 }
 
+/// Page option configs (size and spacing)
 #[derive(Deserialize, Debug)]
 pub struct PageOpts {
 	#[serde(default = "PageSize::default")]
@@ -79,6 +84,7 @@ impl Config {
 }
 
 impl PageSize {
+	/// Get page size. Requires landscape bool
 	pub fn size(&self, landscape: bool) -> (f64, f64) {
 		let (x, y) = match self {
 			PageSize::A4 => (210.0, 297.0),
@@ -91,6 +97,7 @@ impl PageSize {
 }
 
 impl FontSize {
+	/// Get the text size for a given ID (from HTML tags)
 	pub fn get(&self, section: &str) -> u8 {
 		match section {
 			"h1" => self.h1,

@@ -16,13 +16,7 @@ fn main() {
             return
         }
     };
-    let generator = match Generator::new(rc, opts) {
-        Ok(g) => g,
-        Err(e) => {
-            return
-        }
-    };
-    if let Err(e) = generator.build() {
+    if let Err(e) = Generator::new(rc, opts).build() {
         mdbook::utils::log_backtrace(&Error::new(e));
     }
 }

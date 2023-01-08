@@ -1,24 +1,27 @@
-use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::BufWriter;
-use anyhow::Error;
-use genpdf::{Alignment, Document, Element as _, elements, fonts, SimplePageDecorator, style};
-use genpdf::elements::StyledElement;
+use genpdf::{Alignment, Document, Element as _, elements, SimplePageDecorator};
 use genpdf::fonts::{Font, FontData, FontFamily};
 use genpdf::style::Style;
-use mdbook::book::{BookItems, Chapter};
+use mdbook::book::Chapter;
 use mdbook::BookItem;
 use mdbook::renderer::RenderContext;
-use crate::config::{Config, PageOpts};
+use crate::config::Config;
 
+/// Main struct used for PDF generation
 pub struct Generator {
+    /// mdbook given config
     pub config: RenderContext,
+    /// PDF options. See [Config]
     pub pdf_opts: Config,
+    /// Document struct. Will eventually generate a PDF
     pub document: Document,
+    /// Monospace font family. More for convenience than anything else
     pub monospace: FontFamily<Font>,
+    /// Document title. Included in other places, but I'm lazy and made it easier to access
     pub title: String
 }
 
+// Required file contents
 const HLJS: &'static str = include_str!("../../theme/hl.js");
 const OPEN_SANS: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-regular.ttf");
 const OPEN_SANS_BOLD: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-700.ttf");
@@ -31,7 +34,7 @@ impl Generator {
     /// This will initialise the PDF with only fonts and configs. [Generator::configure] is then
     /// called which will initialise the first page (title, subtitle, SUMMARY.md) and the page
     /// settings (decorator, size, etc.)
-    pub fn new(rc: RenderContext, pdf_opts: Config) -> Result<Self, Error> {
+    pub fn new(rc: RenderContext, pdf_opts: Config) -> Self {
         let fonts = FontFamily {
             regular: FontData::new(OPEN_SANS.to_vec(), None).unwrap(),
             bold: FontData::new(OPEN_SANS_BOLD.to_vec(), None).unwrap(),
@@ -47,9 +50,12 @@ impl Generator {
             italic: monospace_raw.clone(),
             bold_italic: monospace_raw.clone(),
         });
-        Ok(Self { config: rc, pdf_opts, document, monospace, title }.configure())
+        Self { config: rc, pdf_opts, document, monospace, title }.configure()
     }
     
+    /// Sets up the document\
+    /// Generates the title, optional subtitle, and contents, along with setting fonts, paper size,
+    /// and other important things
     fn configure(mut self) -> Self {
         self.document.set_title(self.title.clone());
         self.document.set_minimal_conformance();
@@ -95,7 +101,11 @@ impl Generator {
         self
     }
     
+    /// Build the PDF\
+    /// Appends PDF elements to the document, then writes the generated document, optionally
+    /// returning an error that's handled in the main function
     pub fn build(mut self) -> Result<(), genpdf::error::Error> {
+        // check for highlighting, and custom a highlight.js file
         let mut hl = None;
         if self.pdf_opts.highlight {
             hl = if let Ok(custom) = std::fs::read_to_string(self.config.root.join("theme").join("highlight.js")) {
@@ -109,7 +119,7 @@ impl Generator {
                 self.chapter(&*chapter.content, &hl)
             }
         }
-        // TODO: error handling
+        // TODO: error handling. maybe?
         self.document.render(File::create(format!("{}.pdf", self.title)).unwrap())
     }
 }

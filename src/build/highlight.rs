@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, HashSet};
 use std::iter::Peekable;
-use std::path::PathBuf;
 use std::str::Chars;
 use anyhow::Error;
-use genpdf::Element;
-use genpdf::elements::{FramedElement, LinearLayout, PaddedElement, Paragraph, StyledElement};
+use genpdf::elements::{LinearLayout, Paragraph};
 use genpdf::style::{Color, Style, StyledString};
 use crate::build::sections::replace_reserved;
 
+/// Checks if the used highlight.js script can highlight a specific language. Used before calling
+/// [highlight] to check that the Js won't fail because it can't highlight the language
 pub fn check_language(name: &str, hl: &String) -> Option<String> {
 	match std::process::Command::new("node")
 		.arg("-e")
@@ -28,7 +28,8 @@ pub fn check_language(name: &str, hl: &String) -> Option<String> {
 	}
 }
 
-pub fn highlight(language: String, src: &str, hl: &String) -> LinearLayout{
+/// Highlights a section of code using highlight.js
+pub fn highlight(language: String, src: &str, hl: &String) -> LinearLayout {
 	let raw = match std::process::Command::new("node")
 		.current_dir(std::env::current_dir().unwrap())
 		.args([
@@ -114,7 +115,7 @@ pub fn highlight(language: String, src: &str, hl: &String) -> LinearLayout{
 				block.push(line);
 				line = Paragraph::new("");
 			} else {
-				let mut push_end = words.chars().last() == Some('\n');
+				let push_end = words.chars().last() == Some('\n');
 				let mut lines = words.split("\n");
 				line.push(StyledString::new(lines.next().unwrap(), style));
 				for section in lines {
@@ -144,18 +145,24 @@ pub fn highlight(language: String, src: &str, hl: &String) -> LinearLayout{
 	block
 }
 
+/// Simplified HTML token. Can either be raw text, or an element with children and classes\
+/// Parsed from [parse_html]
 #[derive(Debug)]
 enum Token {
+	/// Raw text
 	Text(String),
+	/// Element (span) containing classes and children
 	Element {
 		classes: HashSet<String>,
 		children: Vec<Token>
 	}
 }
 
+/// A bad HTML parser that makes a lot of assumptions. Uses the output of highlight.js which should
+/// remain consistent
 fn parse_html(src: String) -> Vec<Token> {
 	let mut iter = src.chars().peekable();
-	fn inner(i: &mut Peekable<Chars>, mut classes: HashSet<String>) -> Vec<Token> {
+	fn inner(i: &mut Peekable<Chars>, classes: HashSet<String>) -> Vec<Token> {
 		let mut out = Vec::new();
 		loop {
 			match i.next() {

@@ -1,12 +1,10 @@
 use std::collections::HashSet;
 use ego_tree::iter::Children;
 use ego_tree::NodeRef;
-use genpdf::{Document, Element, elements};
-use genpdf::fonts::{Font, FontCache, FontFamily};
-use genpdf::style::{Color, Style, StyledString};
+use genpdf::{Element, elements};
+use genpdf::style::Style;
 use pulldown_cmark::Parser;
-use scraper::{Html, Node, Selector};
-use serde::Serialize;
+use scraper::{Html, Node};
 use crate::build::Generator;
 use crate::build::highlight::{check_language, highlight};
 
@@ -19,6 +17,7 @@ pub fn replace_reserved(s: String) -> String {
 }
 
 impl Generator {
+	/// Generate the PDF for a book chapter
 	pub fn chapter(&mut self, chapter: &str, hl: &Option<String>) {
 		let mut html_raw = String::new();
 		pulldown_cmark::html::push_html(&mut html_raw, Parser::new_ext(chapter, pulldown_cmark::Options::all()));
@@ -29,6 +28,7 @@ impl Generator {
 		self.document.push(new);
 	}
 	
+	/// Main caller function
 	fn parse_children(&mut self, children: Children<Node>, style: Style, hl: &Option<String>) -> elements::LinearLayout {
 		let mut out = elements::LinearLayout::vertical();
 		for child in children {
@@ -60,6 +60,7 @@ impl Generator {
 							self.code(child.children(), &mut block, hl);
 							out.push(block.padded((0, 0, 1, 0)))
 						}
+						"table" => out.push(self.table(child.children(), style)),
 						_ => {}
 					}
 				}
@@ -69,6 +70,7 @@ impl Generator {
 		out
 	}
 	
+	/// Paragraph generation. Uses a [pdfgen::elements::Paragraph]
 	fn paragraph(&mut self, children: Children<Node>, style: Style, parent: &mut elements::Paragraph) {
 		for child in children {
 			match child.value() {
@@ -87,6 +89,7 @@ impl Generator {
 		}
 	}
 	
+	/// Block generation. Uses a [pdfgen::elements::LinearLayout]
 	fn block(&mut self, children: Children<Node>, style: Style, parent: &mut elements::LinearLayout) {
 		for child in children {
 			macro_rules! para_call {
@@ -112,10 +115,11 @@ impl Generator {
 		}
 	}
 	
+	/// Code block generation
 	fn code(&mut self, mut children: Children<Node>, parent: &mut elements::LinearLayout, hl: &Option<String>) {
 		let mut src = None;
 		let mut classes = HashSet::new();
-		if let Some(mut node) = children.next() {
+		if let Some(node) = children.next() {
 			if let Node::Element(e) = node.value() {
 				classes = e.classes.clone()
 			};
@@ -161,8 +165,48 @@ impl Generator {
 				.with_font_size(self.pdf_opts.font_size.text)
 		));
 	}
+	
+	/// Table generation
+	fn table(&mut self, children: Children<Node>, style: Style) -> elements::TableLayout {
+		let mut rows = Vec::new();
+		// parse the table based on an expected structure
+		for i in children {
+			if let Node::Element(e) = i.value() {
+				let row_style = if e.name() == "thead" { style.bold() } else { style };
+				for child in i.children() {
+					if let Node::Element(_) = child.value() {
+						let mut row: Vec<Box<dyn Element>> = Vec::new();
+						for t in child.children() {
+							match t.value() {
+								Node::Text(t) => row.push(Box::new(elements::Paragraph::new(replace_reserved(t.to_string())).styled(row_style).padded((1, 2)))),
+								Node::Element(_) => {
+									if is_multiline(t.children().collect()) {
+										let mut block = elements::LinearLayout::vertical();
+										self.block(t.children(), row_style, &mut block);
+										row.push(Box::new(block.padded((1, 2))));
+									} else {
+										let mut block = elements::Paragraph::new("");
+										self.paragraph(t.children(), row_style, &mut block);
+										row.push(Box::new(block.padded((1, 2))));
+									}
+								}
+								_ => {}
+							}
+						}
+						rows.push(row)
+					}
+				}
+			}
+		}
+		let mut out = elements::TableLayout::new(vec![1; rows.first().map(|t| t.len()).unwrap_or(0)]);
+		for row in rows { out.push_row(row); }
+		out.set_cell_decorator(elements::FrameCellDecorator::new(true, false, false));
+		out
+	}
 }
 
+/// Checks if a section is multiline or not. Used by lists and tables when determining is they
+/// should use a `LinearElement` or `Paragraph`
 fn is_multiline(children: Vec<NodeRef<Node>>) -> bool {
 	let mut out = false;
 	for i in children {
@@ -176,6 +220,8 @@ fn is_multiline(children: Vec<NodeRef<Node>>) -> bool {
 	out
 }
 
+/// List macro. Both lists are almost identical, so we use a macro to generate the functions to
+/// ensure concurrency between the functions
 macro_rules! list {
 	($name: ident, $t: ty) => {
 impl Generator {
