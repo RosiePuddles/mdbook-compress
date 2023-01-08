@@ -72,15 +72,14 @@ impl Generator {
 	fn paragraph(&mut self, children: Children<Node>, style: Style, parent: &mut elements::Paragraph) {
 		for child in children {
 			match child.value() {
-				Node::Text(t) => parent.push_styled(replace_reserved(t.to_string()), style),
+				Node::Text(t) => parent.push_styled(replace_reserved(t.to_string().replace("\n", "")), style),
 				Node::Element(e) => {
 					match e.name() {
 						"p" | "a" => self.paragraph(child.children(), style, parent),
 						"strong" => self.paragraph(child.children(), style.bold(), parent),
 						"em" => self.paragraph(child.children(), style.italic(), parent),
 						"code" => self.paragraph(child.children(), style.with_font_family(self.monospace), parent),
-						"br" => parent.push(StyledString::new("\n", style)),
-						_ => { println!("{} from paragraph", e.name()) }
+						_ => {}
 					}
 				}
 				_ => {}
@@ -88,34 +87,29 @@ impl Generator {
 		}
 	}
 	
-	fn ordered_list(&mut self, children: Children<Node>, style: Style, parent: &mut elements::LinearLayout) {
-		let mut out = elements::OrderedList::new();
+	fn block(&mut self, children: Children<Node>, style: Style, parent: &mut elements::LinearLayout) {
 		for child in children {
+			macro_rules! para_call {
+				($t: expr) => {{
+					let mut para = elements::Paragraph::new("");
+					self.paragraph(child.children(), $t, &mut para);
+					parent.push(para)
+				}};
+			}
 			match child.value() {
-				Node::Element(_) => {
-					let mut block = elements::Paragraph::new("");
-					self.paragraph(child.children(), style, &mut block);
-					out.push(block)
+				Node::Text(t) => parent.push(elements::Paragraph::new(replace_reserved(t.to_string().replace("\n", ""))).styled(style)),
+				Node::Element(e) => {
+					match e.name() {
+						"p" | "a" => para_call!(style),
+						"strong" => para_call!(style.bold()),
+						"em" => para_call!(style.italic()),
+						"code" => para_call!(style.with_font_family(self.monospace)),
+						_ => {}
+					}
 				}
 				_ => {}
 			}
 		}
-		parent.push(out)
-	}
-	
-	fn unordered_list(&mut self, children: Children<Node>, style: Style, parent: &mut elements::LinearLayout) {
-		let mut out = elements::UnorderedList::new();
-		for child in children {
-			match child.value() {
-				Node::Element(_) => {
-					let mut block = elements::Paragraph::new("");
-					self.paragraph(child.children(), style, &mut block);
-					out.push(block)
-				}
-				_ => {}
-			}
-		}
-		parent.push(out)
 	}
 	
 	fn code(&mut self, mut children: Children<Node>, parent: &mut elements::LinearLayout, hl: &Option<String>) {
@@ -168,3 +162,51 @@ impl Generator {
 		));
 	}
 }
+
+fn is_multiline(children: Vec<NodeRef<Node>>) -> bool {
+	let mut out = false;
+	for i in children {
+		match i.value() {
+			Node::Text(t) => out = t.to_string().contains("\n"),
+			Node::Element(_) => out = is_multiline(i.children().collect()),
+			_ => {}
+		}
+		if out { break }
+	}
+	out
+}
+
+macro_rules! list {
+	($name: ident, $t: ty) => {
+impl Generator {
+	fn $name(&mut self, children: Children<Node>, style: Style, parent: &mut elements::LinearLayout) {
+		let mut out = <$t>::new();
+		if is_multiline(children.clone().filter_map(|t| if let Node::Element(_) = t.value() { Some(t) } else { None }).collect()) {
+			for child in children {
+				match child.value() {
+					Node::Element(_) => {
+						let mut block = elements::LinearLayout::vertical();
+						self.block(child.children(), style, &mut block);
+						out.push(block)
+					}
+					_ => {}
+				}
+			}
+		} else {
+			for child in children {
+				match child.value() {
+					Node::Element(_) => {
+						let mut block = elements::Paragraph::new("");
+						self.paragraph(child.children(), style, &mut block);
+						out.push(block)
+					}
+					_ => {}
+				}
+			}
+		}
+		parent.push(out.styled(style))
+	}
+}};}
+
+list!(unordered_list, elements::UnorderedList);
+list!(ordered_list, elements::OrderedList);
