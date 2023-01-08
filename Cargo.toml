@@ -6,7 +6,10 @@ version = "0.1.0"
 edition = "2021"
 include = ["src"]
 repository = "https://github.com/RosiePuddles/mdbook-compress"
-keywords = ["mdbook", "pdf"]
+keywords = ["book", "mdbook", "rustbook", "pdf"]
+categories = ["text-processing", "command-line-interface"]
+license = "MPL-2.0"
+readme = "README.md"
 
 [dependencies]
 serde = { version = "1.0.152", features = ["derive"] }
