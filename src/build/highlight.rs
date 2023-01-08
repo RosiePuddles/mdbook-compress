@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::iter::Peekable;
 use std::path::PathBuf;
 use std::str::Chars;
@@ -102,6 +102,9 @@ pub fn highlight(language: String, src: &str, hl: &String) -> LinearLayout{
 			}
 		}
 	}
+	if &*language == "json" {
+		for t in tokens.iter() { println!("{:?}", t) }
+	}
 	expand(tokens, &mut out, None, Style::new(), &colour_map);
 	let mut block = LinearLayout::vertical();
 	let mut line = Paragraph::new("");
@@ -148,14 +151,14 @@ pub fn highlight(language: String, src: &str, hl: &String) -> LinearLayout{
 enum Token {
 	Text(String),
 	Element {
-		classes: Vec<String>,
+		classes: HashSet<String>,
 		children: Vec<Token>
 	}
 }
 
 fn parse_html(src: String) -> Vec<Token> {
 	let mut iter = src.chars().peekable();
-	fn inner(i: &mut Peekable<Chars>, mut classes: Vec<String>) -> Vec<Token> {
+	fn inner(i: &mut Peekable<Chars>, mut classes: HashSet<String>) -> Vec<Token> {
 		let mut out = Vec::new();
 		loop {
 			match i.next() {
@@ -176,8 +179,9 @@ fn parse_html(src: String) -> Vec<Token> {
 							}
 							// skip closing ">
 							for _ in 0..2 { i.next(); }
-							classes.extend(classes_raw.split_whitespace().map(|t| t.to_string()));
-							out.push(Token::Element {classes: classes.clone(), children: inner(i, classes.clone()) });
+							let mut new_classes = classes.clone();
+							new_classes.extend(classes_raw.split_whitespace().map(|t| t.to_string()));
+							out.push(Token::Element {classes: new_classes.clone(), children: inner(i, new_classes) });
 						}
 					}
 					// skip ending >
@@ -195,5 +199,5 @@ fn parse_html(src: String) -> Vec<Token> {
 		}
 		out
 	}
-	inner(&mut iter, Vec::new())
+	inner(&mut iter, HashSet::new())
 }
