@@ -102,9 +102,6 @@ pub fn highlight(language: String, src: &str, hl: &String) -> LinearLayout{
 			}
 		}
 	}
-	if &*language == "json" {
-		for t in tokens.iter() { println!("{:?}", t) }
-	}
 	expand(tokens, &mut out, None, Style::new(), &colour_map);
 	let mut block = LinearLayout::vertical();
 	let mut line = Paragraph::new("");
