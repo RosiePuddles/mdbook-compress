@@ -1,5 +1,7 @@
 # mdbook-compress
 
+<img src="https://img.shields.io/crates/v/mdbook-compress.svg" alt="crate.io version badge">
+
 An [mdBook](https://github.com/rust-lang/mdBook) backend renderer to generate a single PDF file for a full book.
 
 There are other similar projects, but most rely on chrome in some way to generate a PDF. This project only optionally
