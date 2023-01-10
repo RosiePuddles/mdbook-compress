@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use ego_tree::iter::Children;
 use ego_tree::NodeRef;
 use genpdf::{Element, elements};
+use genpdf::elements::{PaddedElement, TableLayout};
 use genpdf::style::Style;
 use pulldown_cmark::Parser;
 use scraper::{Html, Node};
@@ -152,8 +153,9 @@ impl Generator {
 	}
 	
 	/// Table generation
-	fn table(&mut self, children: Children<Node>, style: Style) -> elements::TableLayout {
+	fn table(&mut self, children: Children<Node>, style: Style) -> PaddedElement<TableLayout> {
 		let mut rows = Vec::new();
+		let mut widths = Vec::new();
 		// parse the table based on an expected structure
 		for i in children {
 			if let Node::Element(e) = i.value() {
@@ -161,9 +163,13 @@ impl Generator {
 				for child in i.children() {
 					if let Node::Element(_) = child.value() {
 						let mut row: Vec<Box<dyn Element>> = Vec::new();
+						let mut row_widths = Vec::new();
 						for t in child.children() {
 							match t.value() {
-								Node::Text(t) => row.push(Box::new(elements::Paragraph::new(replace_reserved(t.to_string())).styled(row_style).padded((1, 2)))),
+								Node::Text(t) => {
+									row.push(Box::new(elements::Paragraph::new(replace_reserved(t.to_string())).styled(row_style).padded((1, 2))));
+									row_widths.push(t.len());
+								},
 								Node::Element(_) => {
 									if is_multiline(t.children().collect()) {
 										let mut block = elements::LinearLayout::vertical();
@@ -174,19 +180,37 @@ impl Generator {
 										self.paragraph(t.children(), row_style, &mut block);
 										row.push(Box::new(block.padded((1, 2))));
 									}
+									row_widths.push(count_string_length(t.children().collect()));
 								}
 								_ => {}
 							}
 						}
-						rows.push(row)
+						rows.push(row);
+						widths.push(row_widths);
 					}
 				}
 			}
 		}
-		let mut out = elements::TableLayout::new(vec![1; rows.first().map(|t| t.len()).unwrap_or(0)]);
-		for row in rows { out.push_row(row); }
+		let width = rows.iter().map(|t| t.len()).max().unwrap_or(0);
+		let widths = widths.iter().map(|t| {
+			let mut out = t.clone();
+			out.extend(vec![0; width - t.len()]);
+			out
+		}).fold(vec![Vec::new(); width], |mut acc, elem| {
+			for (i, t) in elem.iter().enumerate() { acc[i].push(*t) }
+			acc
+		});
+		let mean_widths = widths.iter().map(|t| t.iter().sum::<usize>() / t.len()).collect::<Vec<_>>();
+		let max_width = *mean_widths.iter().max().unwrap_or(&1);
+		let mut out = elements::TableLayout::new(mean_widths.iter().map(|w| (3 * *w / max_width).max(1)).collect());
+		#[allow(unused_must_use)]
+		for mut row in rows {
+			for _ in 0..width - row.len() { row.push(Box::new(elements::Paragraph::new(""))) }
+			// we don't need to check for an error because we already made sure that all the rows are the same length
+			out.push_row(row);
+		}
 		out.set_cell_decorator(elements::FrameCellDecorator::new(true, false, false));
-		out
+		out.padded((2, 0))
 	}
 }
 
@@ -201,6 +225,19 @@ fn is_multiline(children: Vec<NodeRef<Node>>) -> bool {
 			_ => {}
 		}
 		if out { break }
+	}
+	out
+}
+
+/// Count the cumulative length of the strings contained under an element
+fn count_string_length(children: Vec<NodeRef<Node>>) -> usize {
+	let mut out = 0;
+	for child in children {
+		match child.value() {
+			Node::Text(t) => out += t.len(),
+			Node::Element(_) => out += count_string_length(child.children().collect()),
+			_ => {}
+		}
 	}
 	out
 }

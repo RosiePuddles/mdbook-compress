@@ -86,7 +86,6 @@ If you're using a custom highlight.js file, this might make the renderer a bit s
 - Images
 - Better padding support for blocks
 - Custom highlight.js theme application
-- Beter table column sizing
 
 ## Dependencies
 

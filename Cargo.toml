@@ -2,7 +2,7 @@
 name = "mdbook-compress"
 description = "Compress an mdBook project into a single PDF file"
 authors = ["nxe"]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 include = ["src/**/*.rs", "theme/*.txt", "theme/*.ttf", "Cargo.toml"]
 repository = "https://github.com/RosiePuddles/mdbook-compress"
