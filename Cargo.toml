@@ -2,9 +2,9 @@
 name = "mdbook-compress"
 description = "Compress an mdBook project into a single PDF file"
 authors = ["nxe"]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-include = ["src/**/*.rs", "theme/*.js", "theme/*.txt", "theme/*.ttf", "Cargo.toml"]
+include = ["src/**/*.rs", "theme/*.txt", "theme/*.ttf", "Cargo.toml"]
 repository = "https://github.com/RosiePuddles/mdbook-compress"
 homepage = "https://github.com/RosiePuddles/mdbook-compress"
 documentation = "https://docs.rs/crate/mdbook-compress/0.1.0"
@@ -21,3 +21,4 @@ anyhow = "1.0.68"
 scraper = "0.14.0"
 ego-tree = "0.6.2"
 pulldown-cmark = { version = "0.9.2", default-features = false }
+syntect = "5.0.0"

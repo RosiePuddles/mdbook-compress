@@ -5,7 +5,7 @@ use genpdf::style::Style;
 use mdbook::book::Chapter;
 use mdbook::BookItem;
 use mdbook::renderer::RenderContext;
-use crate::config::Config;
+use crate::config::{Config, Highlight};
 
 /// Main struct used for PDF generation
 pub struct Generator {
@@ -22,7 +22,6 @@ pub struct Generator {
 }
 
 // Required file contents
-const HLJS: &'static str = include_str!("../../theme/hl.js");
 const OPEN_SANS: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-regular.ttf");
 const OPEN_SANS_BOLD: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-700.ttf");
 const OPEN_SANS_BOLD_ITALIC: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-700italic.ttf");
@@ -105,15 +104,18 @@ impl Generator {
     /// Appends PDF elements to the document, then writes the generated document, optionally
     /// returning an error that's handled in the main function
     pub fn build(mut self) -> Result<(), genpdf::error::Error> {
-        // check for highlighting, and custom a highlight.js file
-        let mut hl = None;
-        if self.pdf_opts.highlight {
-            hl = if let Ok(custom) = std::fs::read_to_string(self.config.root.join("theme").join("highlight.js")) {
-                Some(custom)
-            } else {
-                Some(HLJS.to_string())
+        // check for highlighting, and custom a highlight_.js file
+        let hl = match self.pdf_opts.highlight {
+            Highlight::all => {
+                if let Ok(custom) = std::fs::read_to_string(self.config.root.join("theme").join("highlight.js")) {
+                    Some(HL::highlight(custom))
+                } else {
+                    Some(HL::syntect)
+                }
             }
-        }
+            Highlight::no_node => Some(HL::syntect),
+            Highlight::none => None
+        };
         for chapter in self.config.clone().book.iter() {
             if let BookItem::Chapter(chapter) = chapter {
                 self.chapter(&*chapter.content, &hl)
@@ -122,6 +124,15 @@ impl Generator {
         // TODO: error handling. maybe?
         self.document.render(File::create(format!("{}.pdf", self.title)).unwrap())
     }
+}
+
+/// Highlighting struct. Will be wrapped in an `Option` when passed to the chapter builder
+#[allow(non_camel_case_types)]
+pub enum HL {
+    /// Use syntect highlighting (bundled and in Rust so faster)
+    syntect,
+    /// Use highlight_.js highlighting (much slower. Called through Node.js)
+    highlight(String)
 }
 
 /// Local chapter map representation

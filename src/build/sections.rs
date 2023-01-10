@@ -5,8 +5,9 @@ use genpdf::{Element, elements};
 use genpdf::style::Style;
 use pulldown_cmark::Parser;
 use scraper::{Html, Node};
+use crate::build::document::HL;
 use crate::build::Generator;
-use crate::build::highlight::{check_language, highlight};
+use crate::highlight::{node, syntect};
 
 pub fn replace_reserved(s: String) -> String {
 	s.replace("&gt;", ">")
@@ -18,7 +19,7 @@ pub fn replace_reserved(s: String) -> String {
 
 impl Generator {
 	/// Generate the PDF for a book chapter
-	pub fn chapter(&mut self, chapter: &str, hl: &Option<String>) {
+	pub fn chapter(&mut self, chapter: &str, hl: &Option<HL>) {
 		let mut html_raw = String::new();
 		pulldown_cmark::html::push_html(&mut html_raw, Parser::new_ext(chapter, pulldown_cmark::Options::all()));
 		let fragment = Html::parse_fragment(&*html_raw);
@@ -29,7 +30,7 @@ impl Generator {
 	}
 	
 	/// Main caller function
-	fn parse_children(&mut self, children: Children<Node>, style: Style, hl: &Option<String>) -> elements::LinearLayout {
+	fn parse_children(&mut self, children: Children<Node>, style: Style, hl: &Option<HL>) -> elements::LinearLayout {
 		let mut out = elements::LinearLayout::vertical();
 		for child in children {
 			match child.value() {
@@ -116,12 +117,12 @@ impl Generator {
 	}
 	
 	/// Code block generation
-	fn code(&mut self, mut children: Children<Node>, parent: &mut elements::LinearLayout, hl: &Option<String>) {
+	fn code(&mut self, mut children: Children<Node>, parent: &mut elements::LinearLayout, hl: &Option<HL>) {
 		let mut src = None;
 		let mut classes = HashSet::new();
 		if let Some(node) = children.next() {
 			if let Node::Element(e) = node.value() {
-				classes = e.classes.clone()
+				classes = e.classes.iter().map(|t| t.to_string()).collect::<HashSet<_>>()
 			};
 			if let Some(node) = node.children().next() {
 				if let Node::Text(t) = node.value() { src = Some(t.to_string()) }
@@ -129,26 +130,10 @@ impl Generator {
 		}
 		parent.push(if let Some(src) = src {
 			if let Some(hl) = hl {
-				let mut highlightable = None;
-				for class in classes {
-					let class = class.to_string();
-					if class.starts_with("language-") {
-						highlightable = check_language(&class[9..class.len()], hl)
-					}
-					if highlightable.is_some() { break }
-				}
-				if let Some(lang) = highlightable {
-					highlight(lang, &*replace_reserved(src), hl)
+				if let HL::highlight(hl_src) = hl {
+					node::highlight(classes, hl_src, src)
 				} else {
-					let mut block = elements::LinearLayout::vertical();
-					let mut lines = src.lines();
-					if let Some(line) = lines.next() {
-						block.push(elements::Paragraph::new(line))
-					}
-					for line in lines {
-						block.push(elements::Paragraph::new(line))
-					}
-					block
+					syntect::highlight(classes, src)
 				}
 			} else {
 				let mut block = elements::LinearLayout::vertical();

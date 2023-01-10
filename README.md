@@ -52,9 +52,8 @@ page.landscape = false
 # Line and margin spacing. Both measured in millimeters (f64 internally)
 page.spacing.line = 1.5
 page.spacing.margin = [20.0, 20.0]
-# Use Node.js to try and highlight code (true)
-# or leave it unhighlighted (false)
-highlight = true
+# See the highlighting section below
+highlight = "all"
 ```
 
 ### Custom page sizes
@@ -64,11 +63,29 @@ If you need a custom page size, you can give the width and height (`x` and `y`) 
 page.size = { x = "width", y = "height" }
 ```
 
+### Highlighting
+
+Code highlighting with highlight.js (what mdbook uses for the HTML) is pretty slow because it requires calling a node command. To fix this, this project uses syntect to do any highlighting. However, if you specify a custom highlight.js script in the _themes_ directory of your book, the code will use that.
+
+You can change this though. The `highlight` value of the config can be one of:
+- `"all"` (default)\
+  Use highlight.js file when given otherwise use syntect 
+- `"no-node"`\
+  Always use syntect even if a highlight.js file is given
+- `"none"`\
+  Don't do any highlighting
+
+It's worth noting that the highlighting colours for syntect and highlight.js are different because they're different programs
+
 ## Why does it take so long?
 
-Because there's no way (that I know of) to call JS scripts quickly other that running a node command, building the PDF can take a bit of time.
+If you're using a custom highlight.js file, this might make the renderer a bit slow. This is due to having to call Node.js for each code block. You should only use this if you require highlighting a language not supported by syntect.
 
-If you know a faster way to do this, please open an issue or a PR.
+## Things still to add
+
+- Images
+- Better padding support for blocks
+- Custom highlight.js theme application
 
 ## Dependencies
 
@@ -80,6 +97,7 @@ If you want to know what different dependencies are used for, here you go. The d
 | [`mdbook`](https://crates.io/crates/mdbook/0.4.25)                | 0.4.25  | Getting mdbook config and some error printing      |
 | [`genpdf`](https://crates.io/crates/genpdf/0.2.0)                 | 0.2.0   | PDF building (really nice library btw)             |
 | [`anyhow`](https://crates.io/crates/anyhow/1.0.68)                | 1.0.68  | Error handling                                     |
-| [`scraper`](https://crates.io/crates/scraper/0.14.0)              | 0.14.0  | Parsing HTML output from highlight.js              |
+| [`scraper`](https://crates.io/crates/scraper/0.14.0)              | 0.14.0  | Parsing HTML outputs                               |
 | [`ego-tree`](https://crates.io/crates/ego-tree/0.6.2)             | 0.6.2   | Required for function call types when highlighting |
 | [`pulldown-cmark`](https://crates.io/crates/pulldown-cmark/0.9.2) | 0.9.2   | Markdown parsing                                   |
+| [`syntect`](https://crates.io/crates/syntect/0.5.0)               | 0.5.0   | Built-in code highlighting                         |

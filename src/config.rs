@@ -7,9 +7,19 @@ pub struct Config {
 	pub font_size: FontSize,
 	#[serde(default = "PageOpts::default")]
 	pub page: PageOpts,
-	#[serde(default = "default_hl")]
-	pub highlight: bool,
+	#[serde(default = "Highlight::default")]
+	pub highlight: Highlight,
 	pub subtitle: Option<String>
+}
+
+/// Highlighting settings
+#[allow(non_camel_case_types)]
+#[derive(Deserialize, Debug)]
+pub enum Highlight {
+	all,
+	#[serde(rename = "no-node")]
+	no_node,
+	none
 }
 
 /// Font sizes for title, H1 to H6, and text
@@ -77,7 +87,6 @@ fn default_text() -> u8 { 10 }
 fn default_line_space() -> f64 { 1.5 }
 fn default_margin() -> (f64, f64) { (20.0, 20.0) }
 fn default_landscape() -> bool { false }
-fn default_hl() -> bool { true }
 
 impl Config {
 	pub fn from_rc(rc: Option<Self>) -> Self { rc.unwrap_or(Self::default()) }
@@ -116,9 +125,15 @@ impl Default for Config {
 		Self {
 			font_size: Default::default(),
 			page: Default::default(),
-			highlight: default_hl(),
+			highlight: Default::default(),
 			subtitle: None
 		}
+	}
+}
+
+impl Default for Highlight {
+	fn default() -> Self {
+		Self::all
 	}
 }
 

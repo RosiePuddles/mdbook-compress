@@ -1,5 +1,6 @@
 mod config;
 mod build;
+mod highlight;
 
 use anyhow::Error;
 use mdbook::renderer::RenderContext;
