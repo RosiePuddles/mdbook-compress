@@ -5,7 +5,7 @@
 An [mdBook](https://github.com/rust-lang/mdBook) backend renderer to generate a single PDF file for a full book.
 
 There are other similar projects, but most rely on chrome in some way to generate a PDF. This project only optionally
-requires Node.js to be installed for code block syntax highlighting. If you don't want highlighting or don't have Node.js installed, you can specify you don't want highlighting in the config settings with `highlight = false`.
+requires Node.js to be installed for code block syntax highlighting. If you don't want highlighting or don't have Node.js installed, you can specify you don't want highlighting in the config settings with `highlight = "none"`.
 
 ## Usage
 
