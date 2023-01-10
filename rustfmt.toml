@@ -1,0 +1,13 @@
+unstable_features = true
+edition = "2021"
+fn_single_line = true
+blank_lines_upper_bound = 1
+fn_args_layout = "Compressed"
+hard_tabs = true
+format_generated_files = false
+group_imports = "StdExternalCrate"
+ignore = ["src/conf.rs"]
+imports_granularity = "Crate"
+trailing_semicolon = false
+wrap_comments = true
+comment_width = 120

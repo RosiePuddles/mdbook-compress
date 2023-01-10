@@ -71,7 +71,7 @@ You can change this though. The `highlight` value of the config can be one of:
 - `"all"` (default)\
   Use highlight.js file when given otherwise use syntect 
 - `"no-node"`\
-  Always use syntect even if a highlight.js file is given
+  Always use syntect even if a highlight.js file is given. In this case you can give `.sublime-syntax` files in your theme folder that will be used for highlighting. This way you can have a faster alternative to Node whilst keeping custom highlighting
 - `"none"`\
   Don't do any highlighting
 

@@ -9,7 +9,7 @@ pub struct Config {
 	pub page: PageOpts,
 	#[serde(default = "Highlight::default")]
 	pub highlight: Highlight,
-	pub subtitle: Option<String>
+	pub subtitle: Option<String>,
 }
 
 /// Highlighting settings
@@ -19,7 +19,7 @@ pub enum Highlight {
 	all,
 	#[serde(rename = "no-node")]
 	no_node,
-	none
+	none,
 }
 
 /// Font sizes for title, H1 to H6, and text
@@ -53,7 +53,10 @@ pub enum PageSize {
 	US_letter,
 	#[serde(rename = "US legal")]
 	US_legal,
-	Custom { x: f64, y: f64 }
+	Custom {
+		x: f64,
+		y: f64,
+	},
 }
 
 /// Page spacing values (line spacing and margins)
@@ -62,7 +65,7 @@ pub struct PageSpaces {
 	#[serde(default = "default_line_space")]
 	pub line: f64,
 	#[serde(default = "default_margin")]
-	pub margin: (f64, f64)
+	pub margin: (f64, f64),
 }
 
 /// Page option configs (size and spacing)
@@ -73,7 +76,7 @@ pub struct PageOpts {
 	#[serde(default = "default_landscape")]
 	pub landscape: bool,
 	#[serde(default = "PageSpaces::default")]
-	pub spacing: PageSpaces
+	pub spacing: PageSpaces,
 }
 
 fn default_title() -> u8 { 25 }
@@ -99,9 +102,13 @@ impl PageSize {
 			PageSize::A4 => (210.0, 297.0),
 			PageSize::US_letter => (215.9, 279.4),
 			PageSize::US_legal => (215.9, 355.6),
-			PageSize::Custom { x, y } => (*x, *y)
+			PageSize::Custom { x, y } => (*x, *y),
 		};
-		if landscape { (y, x) } else { (x, y) }
+		if landscape {
+			(y, x)
+		} else {
+			(x, y)
+		}
 	}
 }
 
@@ -115,7 +122,7 @@ impl FontSize {
 			"h4" => self.h4,
 			"h5" => self.h5,
 			"h6" => self.h6,
-			_ => self.text
+			_ => self.text,
 		}
 	}
 }
@@ -126,15 +133,13 @@ impl Default for Config {
 			font_size: Default::default(),
 			page: Default::default(),
 			highlight: Default::default(),
-			subtitle: None
+			subtitle: None,
 		}
 	}
 }
 
 impl Default for Highlight {
-	fn default() -> Self {
-		Self::all
-	}
+	fn default() -> Self { Self::all }
 }
 
 impl Default for FontSize {
@@ -153,9 +158,7 @@ impl Default for FontSize {
 }
 
 impl Default for PageSize {
-	fn default() -> Self {
-		PageSize::A4
-	}
+	fn default() -> Self { PageSize::A4 }
 }
 
 impl Default for PageSpaces {
