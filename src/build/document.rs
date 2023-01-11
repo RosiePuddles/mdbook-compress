@@ -2,17 +2,21 @@ use std::{fs::File, io::BufReader};
 
 use genpdf::{
 	elements,
+	error::Error,
 	fonts::{Font, FontData, FontFamily},
 	style::Style,
 	Alignment, Document, Element as _, SimplePageDecorator,
 };
 use mdbook::{book::Chapter, renderer::RenderContext, BookItem};
 use syntect::{
-	highlighting::{Theme, ThemeSet},
+	highlighting::ThemeSet,
 	parsing::{SyntaxSet, SyntaxSetBuilder},
 };
 
-use crate::config::{Config, Highlight};
+use crate::{
+	config::{Config, Highlight},
+	highlight::util::StyleElement,
+};
 
 /// Main struct used for PDF generation
 pub struct Generator {
@@ -146,8 +150,10 @@ impl Generator {
 	/// Build the PDF\
 	/// Appends PDF elements to the document, then writes the generated document, optionally
 	/// returning an error that's handled in the main function
-	pub fn build(mut self) -> Result<(), genpdf::error::Error> {
+	pub fn build(mut self) -> Result<(), Error> {
 		// check for highlighting, and custom a highlight_.js file
+		let default_theme = ThemeSet::load_defaults().themes["base16-ocean.light"].clone();
+		let default_theme = default_theme.scopes.into();
 		let mut hl = match self.pdf_opts.highlight {
 			Highlight::all => {
 				if let Ok(custom) = std::fs::read_to_string(self.config.root.join("theme").join("highlight.js")) {
@@ -157,22 +163,22 @@ impl Generator {
 					if let Err(e) = ss.add_from_folder(self.config.root.join("theme"), true) {
 						println!("Unable to load syntax files from theme folder: {}", e)
 					};
-					Some(HL::syntect((ss.build(), None)))
+					Some(HL::syntect((ss.build(), default_theme)))
 				}
 			}
 			Highlight::no_node => {
-				let mut ss = SyntaxSetBuilder::new();
+				let mut ss = SyntaxSet::load_defaults_newlines().into_builder();
 				if let Err(e) = ss.add_from_folder(self.config.root.join("theme"), true) {
 					println!("Unable to load syntax files from theme folder: {}", e)
 				};
-				Some(HL::syntect((ss.build(), None)))
+				Some(HL::syntect((ss.build(), default_theme)))
 			}
 			Highlight::none => None,
 		};
 		if let Some(HL::syntect((ss, _))) = &hl {
 			if let Ok(theme) = File::open(self.config.root.join("theme").join("theme.tmtheme")) {
 				match ThemeSet::load_from_reader(&mut BufReader::new(theme)) {
-					Ok(theme) => hl = Some(HL::syntect((ss.clone(), Some(theme)))),
+					Ok(theme) => hl = Some(HL::syntect((ss.clone(), theme.scopes.into()))),
 					Err(e) => {
 						println!("Error loading custom ththeme: {}", e)
 					}
@@ -184,9 +190,13 @@ impl Generator {
 				self.chapter(&*chapter.content, &hl)
 			}
 		}
-		// TODO: error handling. maybe?
-		self.document
-			.render(File::create(format!("{}.pdf", self.title)).unwrap())
+		match File::create(format!("{}.pdf", self.title)) {
+			Ok(f) => match self.document.render(f) {
+				Ok(_) => Ok(()),
+				Err(e) => Err(e),
+			},
+			Err(e) => Err(Error::new(format!("Unable to write document: {}", e), e)),
+		}
 	}
 }
 
@@ -194,7 +204,7 @@ impl Generator {
 #[allow(non_camel_case_types)]
 pub enum HL {
 	/// Use syntect highlighting (bundled and in Rust so faster)
-	syntect((SyntaxSet, Option<Theme>)),
+	syntect((SyntaxSet, StyleElement)),
 	/// Use highlight_.js highlighting (much slower. Called through Node.js)
 	highlight(String),
 }

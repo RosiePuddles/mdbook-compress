@@ -1,3 +1,3 @@
 pub mod node;
 pub mod syntect;
-mod util;
+pub mod util;

@@ -8,8 +8,9 @@ use std::{
 
 use genpdf::{
 	elements::{LinearLayout, Paragraph},
-	style::{Style, StyledString},
+	style::{Color, Style, StyledString},
 };
+use syntect::highlighting::ThemeItem;
 
 use crate::build::sections::replace_reserved;
 
@@ -123,6 +124,36 @@ impl Debug for StyleElement {
 	}
 }
 
+impl From<Vec<ThemeItem>> for StyleElement {
+	fn from(t: Vec<ThemeItem>) -> Self {
+		let mut out = Self::Parent {
+			default: Style::new(),
+			children: BTreeMap::new(),
+		};
+		for i in t {
+			let mut style = Style::new();
+			if let Some(c) = i.style.foreground {
+				style.set_color(Color::Rgb(c.r, c.g, c.b))
+			}
+			if let Some(fs) = i.style.font_style {
+				if (fs.bits() & 1) == 1 {
+					style.set_bold()
+				}
+				if (fs.bits() & 4) == 4 {
+					style.set_italic()
+				}
+			}
+			for selector in i.scope.selectors {
+				for scope in selector.path.scopes {
+					let scope = scope.build_string();
+					out = out.insert(scope.split(".").collect::<Vec<_>>().iter(), style);
+				}
+			}
+		}
+		out
+	}
+}
+
 /// A bad HTML parser that makes a lot of assumptions. Assumes only <span> tags or text
 fn parse_html(src: String, map: fn(String) -> Vec<String>) -> Vec<Token> {
 	let mut iter = src.chars().peekable();
@@ -184,7 +215,7 @@ fn parse_html(src: String, map: fn(String) -> Vec<String>) -> Vec<Token> {
 	inner(&mut iter, map)
 }
 
-pub fn to_block(raw: String, colour_map: StyleElement, f: fn(String) -> Vec<String>) -> LinearLayout {
+pub fn to_block(raw: String, colour_map: &StyleElement, f: fn(String) -> Vec<String>) -> LinearLayout {
 	let tokens = parse_html(raw, f);
 	let mut out = Vec::new();
 	for child in tokens {

@@ -114,7 +114,7 @@ pub fn highlight(classes: HashSet<String>, hl: &String, src: String) -> LinearLa
 				.map(|(n, c)| (n.to_string(), StyleElement::Child(Style::new().with_color(c)))),
 			),
 		};
-		to_block(raw, colour_map, |t| {
+		to_block(raw, &colour_map, |t| {
 			let mut iter = t.split_whitespace().enumerate();
 			let mut out = Vec::new();
 			if let Some((_, f)) = iter.next() {
