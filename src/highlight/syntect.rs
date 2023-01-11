@@ -5,7 +5,7 @@ use genpdf::{
 	style::{Color, Style},
 };
 use syntect::{
-	highlighting::ThemeSet,
+	highlighting::{Theme, ThemeSet},
 	html::{ClassStyle, ClassedHTMLGenerator},
 	parsing::SyntaxSet,
 	util::LinesWithEndings,
@@ -14,7 +14,7 @@ use syntect::{
 use crate::highlight::util::{to_block, StyleElement};
 
 pub fn highlight(
-	classes: HashSet<String>, src: String, provided_syntaxes: &SyntaxSet,
+	classes: HashSet<String>, src: String, provided_syntaxes: &SyntaxSet, given_theme: &Option<Theme>,
 ) -> LinearLayout {
 	let ss = SyntaxSet::load_defaults_newlines();
 	let mut syntax = None;
@@ -42,19 +42,21 @@ pub fn highlight(
 		}
 	}
 	if let Some((syntax, syntax_set)) = syntax {
-		let mut parser =
-			ClassedHTMLGenerator::new_with_class_style(syntax, syntax_set, ClassStyle::Spaced);
+		let mut parser = ClassedHTMLGenerator::new_with_class_style(syntax, syntax_set, ClassStyle::Spaced);
 		for line in LinesWithEndings::from(&*src) {
-			parser
-				.parse_html_for_line_which_includes_newline(line)
-				.unwrap();
+			parser.parse_html_for_line_which_includes_newline(line).unwrap();
 		}
 		let mut colour_map = StyleElement::Parent {
 			default: Style::new(),
 			children: BTreeMap::new(),
 		};
 		let theme = ThemeSet::load_defaults();
-		for i in theme.themes["base16-ocean.dark"].clone().scopes {
+		let theme = if let Some(thm) = given_theme {
+			thm.clone()
+		} else {
+			theme.themes["base16-ocean.light"].clone()
+		};
+		for i in theme.scopes {
 			let mut style = Style::new();
 			if let Some(c) = i.style.foreground {
 				style.set_color(Color::Rgb(c.r, c.g, c.b))
@@ -70,8 +72,7 @@ pub fn highlight(
 			for selector in i.scope.selectors {
 				for scope in selector.path.scopes {
 					let scope = scope.build_string();
-					colour_map =
-						colour_map.insert(scope.split(".").collect::<Vec<_>>().iter(), style);
+					colour_map = colour_map.insert(scope.split(".").collect::<Vec<_>>().iter(), style);
 				}
 			}
 		}

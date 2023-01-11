@@ -5,7 +5,7 @@
 An [mdBook](https://github.com/rust-lang/mdBook) backend renderer to generate a single PDF file for a full book.
 
 There are other similar projects, but most rely on chrome in some way to generate a PDF. This project only optionally
-requires Node.js to be installed for code block syntax highlighting. If you don't want highlighting or don't have Node.js installed, you can specify you don't want highlighting in the config settings with `highlight = "none"`.
+requires Node.js to be installed for code block syntax highlighting. If you don't want highlighting you can specify that with `highlight = "none"` in the config (or set `highlight = "no-node"` to use the built-in highlighter).
 
 ## Usage
 
@@ -34,6 +34,13 @@ There are a few config options. They're all below and have a few comments to exp
 # You can optionally specify a subtitle. If you don't the PDF
 # won't include a subtitle
 subtitle = ""
+# If you want to use custom fonts, specify them here.
+# The value is a path relative to 'theme/fonts' under your book root
+font.regular = ""
+font.bold = ""
+font.italic = ""
+font.bold-italic = ""
+font.monospace = ""
 # Font sizes. Any heading after H6 will use the H6 font size
 # All font sizes will become a u8
 font_size.title = 12
@@ -49,8 +56,11 @@ font_size.text = 5
 # Page size. One of: A4, US letter, US legal (see below for custom sizes)
 page.size = "A4"
 page.landscape = false
+# Insert a page break between chapters (markdown files)
+page.new_pages = false
 # Line and margin spacing. Both measured in millimeters (f64 internally)
 page.spacing.line = 1.5
+page.spacing.heading = 2.0
 page.spacing.margin = [20.0, 20.0]
 # See the highlighting section below
 highlight = "all"
@@ -77,15 +87,16 @@ You can change this though. The `highlight` value of the config can be one of:
 
 It's worth noting that the highlighting colours for syntect and highlight.js are different because they're different programs
 
+If you use syntect, you can provide a custom `theme.tmtheme` file in your theme directory. If this is a valid theme, that'll get used for highlighting. If not, the theme `base16-ocean.light` is used instead.
+
 ## Why does it take so long?
 
 If you're using a custom highlight.js file, this might make the renderer a bit slow. This is due to having to call Node.js for each code block. You should only use this if you require highlighting a language not supported by syntect.
 
 ## Things still to add
 
-- Images
-- Better padding support for blocks
-- Custom highlight.js theme application
+- Images (This is not possible with `genpdf`... at the moment)
+- Custom highlight.js theme application (Can have a custom syntect theme)
 
 ## Dependencies
 

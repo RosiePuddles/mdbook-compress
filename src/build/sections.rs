@@ -22,10 +22,7 @@ impl Generator {
 	/// Generate the PDF for a book chapter
 	pub fn chapter(&mut self, chapter: &str, hl: &Option<HL>) {
 		let mut html_raw = String::new();
-		pulldown_cmark::html::push_html(
-			&mut html_raw,
-			Parser::new_ext(chapter, pulldown_cmark::Options::all()),
-		);
+		pulldown_cmark::html::push_html(&mut html_raw, Parser::new_ext(chapter, pulldown_cmark::Options::all()));
 		let fragment = Html::parse_fragment(&*html_raw);
 		let tokens = fragment.root_element();
 		let new = self.parse_children(
@@ -33,14 +30,14 @@ impl Generator {
 			Style::new().with_font_size(self.pdf_opts.font_size.text),
 			hl,
 		);
-		self.document.push(elements::PageBreak::new());
+		if self.pdf_opts.page.new_pages {
+			self.document.push(elements::PageBreak::new())
+		}
 		self.document.push(new);
 	}
 
 	/// Main caller function
-	fn parse_children(
-		&mut self, children: Children<Node>, style: Style, hl: &Option<HL>,
-	) -> elements::LinearLayout {
+	fn parse_children(&mut self, children: Children<Node>, style: Style, hl: &Option<HL>) -> elements::LinearLayout {
 		let mut out = elements::LinearLayout::vertical();
 		for child in children {
 			match child.value() {
@@ -52,7 +49,16 @@ impl Generator {
 							style.with_font_size(self.pdf_opts.font_size.get(e.name())),
 							&mut para,
 						);
-						out.push(para.padded((0, 0, 3, 0)))
+						out.push(para.padded((
+							if e.name() == "h1" {
+								self.pdf_opts.page.spacing.heading
+							} else {
+								0.0
+							},
+							0,
+							3,
+							0,
+						)))
 					}
 					"p" => {
 						let mut para = elements::Paragraph::new("");
@@ -84,23 +90,15 @@ impl Generator {
 	}
 
 	/// Paragraph generation. Uses a [pdfgen::elements::Paragraph]
-	fn paragraph(
-		&mut self, children: Children<Node>, style: Style, parent: &mut elements::Paragraph,
-	) {
+	fn paragraph(&mut self, children: Children<Node>, style: Style, parent: &mut elements::Paragraph) {
 		for child in children {
 			match child.value() {
-				Node::Text(t) => {
-					parent.push_styled(replace_reserved(t.to_string().replace("\n", "")), style)
-				}
+				Node::Text(t) => parent.push_styled(replace_reserved(t.to_string().replace("\n", "")), style),
 				Node::Element(e) => match e.name() {
 					"p" | "a" => self.paragraph(child.children(), style, parent),
 					"strong" => self.paragraph(child.children(), style.bold(), parent),
 					"em" => self.paragraph(child.children(), style.italic(), parent),
-					"code" => self.paragraph(
-						child.children(),
-						style.with_font_family(self.monospace),
-						parent,
-					),
+					"code" => self.paragraph(child.children(), style.with_font_family(self.monospace), parent),
 					_ => {}
 				},
 				_ => {}
@@ -109,9 +107,7 @@ impl Generator {
 	}
 
 	/// Block generation. Uses a [pdfgen::elements::LinearLayout]
-	fn block(
-		&mut self, children: Children<Node>, style: Style, parent: &mut elements::LinearLayout,
-	) {
+	fn block(&mut self, children: Children<Node>, style: Style, parent: &mut elements::LinearLayout) {
 		for child in children {
 			macro_rules! para_call {
 				($t: expr) => {{
@@ -121,10 +117,8 @@ impl Generator {
 				}};
 			}
 			match child.value() {
-				Node::Text(t) => parent.push(
-					elements::Paragraph::new(replace_reserved(t.to_string().replace("\n", "")))
-						.styled(style),
-				),
+				Node::Text(t) => parent
+					.push(elements::Paragraph::new(replace_reserved(t.to_string().replace("\n", ""))).styled(style)),
 				Node::Element(e) => match e.name() {
 					"p" | "a" => para_call!(style),
 					"strong" => para_call!(style.bold()),
@@ -138,19 +132,12 @@ impl Generator {
 	}
 
 	/// Code block generation
-	fn code(
-		&mut self, mut children: Children<Node>, parent: &mut elements::LinearLayout,
-		hl: &Option<HL>,
-	) {
+	fn code(&mut self, mut children: Children<Node>, parent: &mut elements::LinearLayout, hl: &Option<HL>) {
 		let mut src = None;
 		let mut classes = HashSet::new();
 		if let Some(node) = children.next() {
 			if let Node::Element(e) = node.value() {
-				classes = e
-					.classes
-					.iter()
-					.map(|t| t.to_string())
-					.collect::<HashSet<_>>()
+				classes = e.classes.iter().map(|t| t.to_string()).collect::<HashSet<_>>()
 			};
 			if let Some(node) = node.children().next() {
 				if let Node::Text(t) = node.value() {
@@ -162,7 +149,7 @@ impl Generator {
 			if let Some(src) = src {
 				if let Some(hl) = hl {
 					match hl {
-						HL::syntect(ss) => highlight::syntect::highlight(classes, src, ss),
+						HL::syntect((ss, theme)) => highlight::syntect::highlight(classes, src, ss, theme),
 						HL::highlight(hl_src) => highlight::node::highlight(classes, hl_src, src),
 					}
 				} else {
@@ -184,19 +171,13 @@ impl Generator {
 	}
 
 	/// Table generation
-	fn table(
-		&mut self, children: Children<Node>, style: Style,
-	) -> elements::PaddedElement<elements::TableLayout> {
+	fn table(&mut self, children: Children<Node>, style: Style) -> elements::PaddedElement<elements::TableLayout> {
 		let mut rows = Vec::new();
 		let mut widths = Vec::new();
 		// parse the table based on an expected structure
 		for i in children {
 			if let Node::Element(e) = i.value() {
-				let row_style = if e.name() == "thead" {
-					style.bold()
-				} else {
-					style
-				};
+				let row_style = if e.name() == "thead" { style.bold() } else { style };
 				for child in i.children() {
 					if let Node::Element(_) = child.value() {
 						let mut row: Vec<Box<dyn Element>> = Vec::new();
@@ -251,12 +232,7 @@ impl Generator {
 			.map(|t| t.iter().sum::<usize>() / t.len())
 			.collect::<Vec<_>>();
 		let max_width = *mean_widths.iter().max().unwrap_or(&1);
-		let mut out = elements::TableLayout::new(
-			mean_widths
-				.iter()
-				.map(|w| (3 * *w / max_width).max(1))
-				.collect(),
-		);
+		let mut out = elements::TableLayout::new(mean_widths.iter().map(|w| (3 * *w / max_width).max(1)).collect());
 		#[allow(unused_must_use)]
 		for mut row in rows {
 			for _ in 0..width - row.len() {
@@ -306,10 +282,7 @@ fn count_string_length(children: Vec<NodeRef<Node>>) -> usize {
 macro_rules! list {
 	($name: ident, $t: ty) => {
 		impl Generator {
-			fn $name(
-				&mut self, children: Children<Node>, style: Style,
-				parent: &mut elements::LinearLayout,
-			) {
+			fn $name(&mut self, children: Children<Node>, style: Style, parent: &mut elements::LinearLayout) {
 				let mut out = <$t>::new();
 				if is_multiline(
 					children

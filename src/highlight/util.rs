@@ -19,17 +19,12 @@ pub(crate) enum Token {
 	/// Raw text
 	Text(String),
 	/// Element (span) containing classes and children
-	Element {
-		classes: Vec<String>,
-		children: Vec<Token>,
-	},
+	Element { classes: Vec<String>, children: Vec<Token> },
 }
 
 impl Token {
 	/// Expands a token into a string and style which is pushed to an output vector
-	pub(crate) fn expand(
-		self, out_ref: &mut Vec<(String, Style)>, style: Style, style_map: &StyleElement,
-	) {
+	pub(crate) fn expand(self, out_ref: &mut Vec<(String, Style)>, style: Style, style_map: &StyleElement) {
 		match self {
 			Token::Text(t) => out_ref.push((t, style)),
 			Token::Element { classes, children } => {
@@ -78,10 +73,7 @@ impl StyleElement {
 		if let Some(next) = path.next() {
 			if path.len() == 0 {
 				match self {
-					StyleElement::Parent {
-						mut children,
-						default,
-					} => {
+					StyleElement::Parent { mut children, default } => {
 						children.insert(next.to_string(), Self::Child(style));
 						StyleElement::Parent { children, default }
 					}
@@ -89,10 +81,7 @@ impl StyleElement {
 				}
 			} else {
 				match self {
-					StyleElement::Parent {
-						mut children,
-						default,
-					} => {
+					StyleElement::Parent { mut children, default } => {
 						if let Some(continuation) = children.remove(next.clone()) {
 							children.insert(next.to_string(), continuation.insert(path, style));
 						} else {
@@ -123,13 +112,13 @@ impl Debug for StyleElement {
 		let w = f.width().unwrap_or(0) + 1;
 		match self {
 			StyleElement::Parent { default, children } => {
-				writeln!(f, "{}default: {:?}", " ".repeat(20 - w), default)?;
+				writeln!(f, "{:?}", default)?;
 				for (name, child) in children {
 					write!(f, "{}{}: {:>w$?}", " ".repeat(w - 1), name, child)?
 				}
 				Ok(())
 			}
-			StyleElement::Child(s) => writeln!(f, "{}{:?}", " ".repeat(20 - w), s),
+			StyleElement::Child(s) => writeln!(f, "{:?}", s),
 		}
 	}
 }
@@ -195,9 +184,7 @@ fn parse_html(src: String, map: fn(String) -> Vec<String>) -> Vec<Token> {
 	inner(&mut iter, map)
 }
 
-pub fn to_block(
-	raw: String, colour_map: StyleElement, f: fn(String) -> Vec<String>,
-) -> LinearLayout {
+pub fn to_block(raw: String, colour_map: StyleElement, f: fn(String) -> Vec<String>) -> LinearLayout {
 	let tokens = parse_html(raw, f);
 	let mut out = Vec::new();
 	for child in tokens {

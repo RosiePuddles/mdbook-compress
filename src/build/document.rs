@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::{fs::File, io::BufReader};
 
 use genpdf::{
 	elements,
@@ -7,7 +7,10 @@ use genpdf::{
 	Alignment, Document, Element as _, SimplePageDecorator,
 };
 use mdbook::{book::Chapter, renderer::RenderContext, BookItem};
-use syntect::parsing::{SyntaxSet, SyntaxSetBuilder};
+use syntect::{
+	highlighting::{Theme, ThemeSet},
+	parsing::{SyntaxSet, SyntaxSetBuilder},
+};
 
 use crate::config::{Config, Highlight};
 
@@ -28,8 +31,7 @@ pub struct Generator {
 // Required file contents
 const OPEN_SANS: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-regular.ttf");
 const OPEN_SANS_BOLD: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-700.ttf");
-const OPEN_SANS_BOLD_ITALIC: &[u8] =
-	include_bytes!("../../theme/open-sans-v17-all-charsets-700italic.ttf");
+const OPEN_SANS_BOLD_ITALIC: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-700italic.ttf");
 const OPEN_SANS_ITALIC: &[u8] = include_bytes!("../../theme/open-sans-v17-all-charsets-italic.ttf");
 const SOURCE_CODE_PRO: &[u8] = include_bytes!("../../theme/SourceCodePro-Regular.ttf");
 
@@ -39,15 +41,41 @@ impl Generator {
 	/// called which will initialise the first page (title, subtitle, SUMMARY.md) and the page
 	/// settings (decorator, size, etc.)
 	pub fn new(rc: RenderContext, pdf_opts: Config) -> Self {
-		let fonts = FontFamily {
+		let mut fonts = FontFamily {
 			regular: FontData::new(OPEN_SANS.to_vec(), None).unwrap(),
 			bold: FontData::new(OPEN_SANS_BOLD.to_vec(), None).unwrap(),
 			italic: FontData::new(OPEN_SANS_ITALIC.to_vec(), None).unwrap(),
 			bold_italic: FontData::new(OPEN_SANS_BOLD_ITALIC.to_vec(), None).unwrap(),
 		};
+		let mut monospace_raw = FontData::new(SOURCE_CODE_PRO.to_vec(), None).unwrap();
+		if let Some(given_fonts) = &pdf_opts.font {
+			macro_rules! parse_font_path {
+				($t: expr, $o: expr, $l: expr) => {
+					if let Some(p) = $t {
+						if let Ok(t) = std::fs::read_to_string(rc.root.join("theme").join("fonts").join(p)) {
+							match FontData::new(t.bytes().collect(), None) {
+								Ok(f) => $o = f,
+								Err(e) => println!("Unable to parse font for {}: {}", $l, e),
+							}
+						}
+					}
+				};
+			}
+			parse_font_path!(&given_fonts.regular, fonts.regular, "regular");
+			parse_font_path!(&given_fonts.bold, fonts.bold, "bold");
+			parse_font_path!(&given_fonts.italic, fonts.italic, "italic");
+			parse_font_path!(&given_fonts.bold_italic, fonts.bold_italic, "bold-italic");
+			if let Some(p) = &given_fonts.monospace {
+				if let Ok(t) = std::fs::read_to_string(rc.root.join("theme").join("fonts").join(p)) {
+					match FontData::new(t.bytes().collect(), None) {
+						Ok(f) => monospace_raw = f,
+						Err(e) => println!("Unable to parse font for monospace: {}", e),
+					}
+				}
+			}
+		}
 		let title = rc.config.book.title.clone().unwrap_or(String::new());
 		let mut document = Document::new(fonts);
-		let monospace_raw = FontData::new(SOURCE_CODE_PRO.to_vec(), None).unwrap();
 		let monospace = document.add_font_family(FontFamily {
 			regular: monospace_raw.clone(),
 			bold: monospace_raw.clone(),
@@ -70,8 +98,7 @@ impl Generator {
 	fn configure(mut self) -> Self {
 		self.document.set_title(self.title.clone());
 		self.document.set_minimal_conformance();
-		self.document
-			.set_line_spacing(self.pdf_opts.page.spacing.line);
+		self.document.set_line_spacing(self.pdf_opts.page.spacing.line);
 		self.document
 			.set_paper_size(self.pdf_opts.page.size.size(self.pdf_opts.page.landscape));
 		let mut decorator = SimplePageDecorator::new();
@@ -88,11 +115,7 @@ impl Generator {
 		self.document.push(
 			elements::Paragraph::new(self.title.clone())
 				.aligned(Alignment::Center)
-				.styled(
-					Style::new()
-						.bold()
-						.with_font_size(self.pdf_opts.font_size.title),
-				),
+				.styled(Style::new().bold().with_font_size(self.pdf_opts.font_size.title)),
 		);
 		if let Some(subtitle) = &self.pdf_opts.subtitle {
 			self.document.push(
@@ -124,18 +147,16 @@ impl Generator {
 	/// returning an error that's handled in the main function
 	pub fn build(mut self) -> Result<(), genpdf::error::Error> {
 		// check for highlighting, and custom a highlight_.js file
-		let hl = match self.pdf_opts.highlight {
+		let mut hl = match self.pdf_opts.highlight {
 			Highlight::all => {
-				if let Ok(custom) =
-					std::fs::read_to_string(self.config.root.join("theme").join("highlight.js"))
-				{
+				if let Ok(custom) = std::fs::read_to_string(self.config.root.join("theme").join("highlight.js")) {
 					Some(HL::highlight(custom))
 				} else {
 					let mut ss = SyntaxSetBuilder::new();
 					if let Err(e) = ss.add_from_folder(self.config.root.join("theme"), true) {
 						println!("Unable to load syntax files from theme folder: {}", e)
 					};
-					Some(HL::syntect(ss.build()))
+					Some(HL::syntect((ss.build(), None)))
 				}
 			}
 			Highlight::no_node => {
@@ -143,10 +164,20 @@ impl Generator {
 				if let Err(e) = ss.add_from_folder(self.config.root.join("theme"), true) {
 					println!("Unable to load syntax files from theme folder: {}", e)
 				};
-				Some(HL::syntect(ss.build()))
+				Some(HL::syntect((ss.build(), None)))
 			}
 			Highlight::none => None,
 		};
+		if let Some(HL::syntect((ss, _))) = &hl {
+			if let Ok(theme) = File::open(self.config.root.join("theme").join("theme.tmtheme")) {
+				match ThemeSet::load_from_reader(&mut BufReader::new(theme)) {
+					Ok(theme) => hl = Some(HL::syntect((ss.clone(), Some(theme)))),
+					Err(e) => {
+						println!("Error loading custom ththeme: {}", e)
+					}
+				}
+			}
+		}
 		for chapter in self.config.clone().book.iter() {
 			if let BookItem::Chapter(chapter) = chapter {
 				self.chapter(&*chapter.content, &hl)
@@ -162,7 +193,7 @@ impl Generator {
 #[allow(non_camel_case_types)]
 pub enum HL {
 	/// Use syntect highlighting (bundled and in Rust so faster)
-	syntect(SyntaxSet),
+	syntect((SyntaxSet, Option<Theme>)),
 	/// Use highlight_.js highlighting (much slower. Called through Node.js)
 	highlight(String),
 }

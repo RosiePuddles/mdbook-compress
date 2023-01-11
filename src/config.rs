@@ -5,11 +5,23 @@ use serde::Deserialize;
 pub struct Config {
 	#[serde(default = "FontSize::default")]
 	pub font_size: FontSize,
+	pub font: Option<Fonts>,
 	#[serde(default = "PageOpts::default")]
 	pub page: PageOpts,
 	#[serde(default = "Highlight::default")]
 	pub highlight: Highlight,
 	pub subtitle: Option<String>,
+}
+
+/// Optional custom fonts
+#[derive(Deserialize, Debug)]
+pub struct Fonts {
+	pub regular: Option<String>,
+	pub bold: Option<String>,
+	pub italic: Option<String>,
+	#[serde(rename = "bold-italic")]
+	pub bold_italic: Option<String>,
+	pub monospace: Option<String>,
 }
 
 /// Highlighting settings
@@ -64,6 +76,8 @@ pub enum PageSize {
 pub struct PageSpaces {
 	#[serde(default = "default_line_space")]
 	pub line: f64,
+	#[serde(default = "default_heading_space")]
+	pub heading: f64,
 	#[serde(default = "default_margin")]
 	pub margin: (f64, f64),
 }
@@ -75,6 +89,8 @@ pub struct PageOpts {
 	pub size: PageSize,
 	#[serde(default = "default_landscape")]
 	pub landscape: bool,
+	#[serde(default = "default_new_pages")]
+	pub new_pages: bool,
 	#[serde(default = "PageSpaces::default")]
 	pub spacing: PageSpaces,
 }
@@ -88,8 +104,10 @@ fn default_h5() -> u8 { 12 }
 fn default_h6() -> u8 { 12 }
 fn default_text() -> u8 { 10 }
 fn default_line_space() -> f64 { 1.5 }
+fn default_heading_space() -> f64 { 3.0 }
 fn default_margin() -> (f64, f64) { (20.0, 20.0) }
 fn default_landscape() -> bool { false }
+fn default_new_pages() -> bool { true }
 
 impl Config {
 	pub fn from_rc(rc: Option<Self>) -> Self { rc.unwrap_or(Self::default()) }
@@ -131,6 +149,7 @@ impl Default for Config {
 	fn default() -> Self {
 		Self {
 			font_size: Default::default(),
+			font: None,
 			page: Default::default(),
 			highlight: Default::default(),
 			subtitle: None,
@@ -165,6 +184,7 @@ impl Default for PageSpaces {
 	fn default() -> Self {
 		Self {
 			line: default_line_space(),
+			heading: default_heading_space(),
 			margin: default_margin(),
 		}
 	}
@@ -175,6 +195,7 @@ impl Default for PageOpts {
 		Self {
 			size: Default::default(),
 			landscape: default_landscape(),
+			new_pages: default_new_pages(),
 			spacing: Default::default(),
 		}
 	}
