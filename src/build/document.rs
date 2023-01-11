@@ -52,11 +52,12 @@ impl Generator {
 			macro_rules! parse_font_path {
 				($t: expr, $o: expr, $l: expr) => {
 					if let Some(p) = $t {
-						if let Ok(t) = std::fs::read_to_string(rc.root.join("theme").join("fonts").join(p)) {
-							match FontData::new(t.bytes().collect(), None) {
+						match std::fs::read(rc.root.join("theme").join("fonts").join(p)) {
+							Ok(t) => match FontData::new(t, None) {
 								Ok(f) => $o = f,
 								Err(e) => println!("Unable to parse font for {}: {}", $l, e),
-							}
+							},
+							Err(e) => println!("Unable to parse {} font ({}): {}", $l, p, e),
 						}
 					}
 				};
