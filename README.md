@@ -23,7 +23,7 @@ cargo install mdbook-compress
 
 > If you want to keep the default HTML output, you'll also need to add in `[output.html]` if it's not already there
 
-The resulting PDF will end up in `/book/compress/<book-title>.pdf`. If you want to have a look at an example PDF, you can have a look at [this one](https://github.com/heyitsdoodler/hbml/blob/main/docs/book/compress/HBML%20Tutorial.pdf) which is the whole reaoson this project exists in the first place.
+The resulting PDF will end up in `/book/compress/<book-title>.pdf`. If you want to have a look at an example PDF, you can have a look at [this one](https://github.com/heyitsdoodler/hbml/blob/main/docs/book/compress/HBML%20Tutorial.pdf) which is the whole reason this project exists in the first place.
 
 ### Config options
 
